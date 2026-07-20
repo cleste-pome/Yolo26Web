@@ -180,7 +180,8 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 <button class="nav-item" data-page="test"><span class="icon">🧪</span> <span>测试控制台</span></button>
 <button class="nav-item" data-page="integrations"><span class="icon">🔗</span> <span>集成生态</span></button>
     <div class="nav-section">关于</div>
-    <button class="nav-item" data-page="about"><span class="icon">📖</span> <span>YOLO26 介绍</span></button>
+    <button class="nav-item" data-page="history"><span class="icon">📋</span> <span>检测历史</span></button>
+<button class="nav-item" data-page="about"><span class="icon">📖</span> <span>YOLO26 介绍</span></button>
   </div>
   <div class="sidebar-footer">
     <div class="status" id="navStatus">检测中...</div>
@@ -322,6 +323,18 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center" id="expTags"></div></div>
 </div></div>
 
+<!-- ── HISTORY ── -->
+<div class="page" id="page-history"><div class="container">
+  <div class="section" style="padding-top:40px"><div class="section-label">检测历史</div><h2 class="section-title">📋 历史检测记录</h2><p class="section-desc" id="histSummary">所有检测结果自动保存，点击查看详情。</p>
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <button class="btn btn-g btn-sm" onclick="loadHistPage()">🔄 刷新</button>
+    <button class="btn btn-g btn-sm" onclick="clearAllHistory()">🗑 清空全部</button>
+  </div>
+  <div id="histGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+    <div style="color:var(--t3);padding:20px;text-align:center">加载中...</div>
+  </div></div>
+</div></div>
+
 <!-- ── ABOUT ── -->
 <div class="page" id="page-about"><div class="container">
   <div class="section" style="padding-top:40px"><div class="section-label">关于</div><h2 class="section-title">📖 什么是 YOLO26？</h2>
@@ -402,6 +415,7 @@ function switchPage(page){
   if(page==='train'){renderTrain();updateTCode();}
   if(page==='test'){renderTest();updateXCode();}
   if(page==='models'){renderMTabs();renderMTable();refreshDL();}
+  if(page==='history'){loadHistPage();}
   // Stop webcam when leaving studio
   if(page!=='studio'&&stuWebcamOn)stuStopWebcam();
   window.scrollTo(0,0);
@@ -695,6 +709,26 @@ function xGet(id,d){const e=document.getElementById(id);return e?(e.type==="chec
 function updateXCode(){let s=X_SNIPPETS[xMode];s=s.replace("MODEL",xGet("vm2",xGet("pm2",xGet("em2","yolo26n.pt")))).replace("DATA",xGet("vd2","coco8.yaml")).replace("IMSZ",xGet("vi2",xGet("pi2",xGet("ei2","640")))).replace("DEVICE",xGet("vv2",xGet("pv2",xGet("ev2","cpu")))).replace("SOURCE",xGet("ps2","image.jpg")).replace("CONF",xGet("pConf2",xGet("vConf2","0.25"))).replace("IOU",xGet("pIou2",xGet("vIou2","0.7"))).replace("MAXDET",xGet("pMaxDet2",xGet("vMaxDet2","300"))).replace("FORMAT",xGet("ef2","onnx")).replace("SPLIT",xGet("vSplit2","val")).replace("AUGMENT",xGet("pAugment2",false)?"True":"False").replace("AGNOSTIC",xGet("pAgnostic2",false)?"True":"False").replace("DYNAMIC",xGet("eDynamic2",false)?"True":"False").replace("SIMPLIFY",xGet("eSimplify2",true)?"True":"False").replace("HALF",xGet("eHalf2",false)?"True":"False").replace("OPSET",xGet("eOpset2","12"));document.getElementById("xCodeBlock").innerHTML=s}
 function xExec(){const log=document.getElementById("xCodeBlock");if(xMode==="val"){const m=xGet("vm2","best.pt");log.innerHTML+=`\\n<span class="cm"># Validating: ${m}</span>\\n`;log.innerHTML+=`[模拟] mAP50-95:0.486 mAP50:0.685 P:0.732 R:0.654\\n`;toast("✅ 验证完成","ok")}else if(xMode==="predict"){const m=xGet("pm2","yolo26n.pt"),src=xGet("ps2","image.jpg");log.innerHTML+=`\\n<span class="cm"># Predict: ${m} → ${src}</span>\\n`;log.innerHTML+=`[模拟] 4objects(person,car,dog,chair)\\n`;toast("✅ 推理完成","ok")}else if(xMode==="export"){const m=xGet("em2","yolo26n.pt"),fmt=xGet("ef2","onnx");log.innerHTML+=`\\n<span class="cm"># Export: ${m} → ${fmt}</span>\\n`;log.innerHTML+=`<span class="g">✅ ${m.replace(".pt","")}.${fmt==="tensorrt"?"engine":fmt}</span>\\n`;toast("✅ 导出完成","ok")}updateXCode()}
 
+
+// ═══════════════════════ 检测历史页面 ═══════════════════════
+async function loadHistPage(){
+  const grid=document.getElementById("histGrid");
+  grid.innerHTML="<div style='color:var(--t3);padding:20px;text-align:center'>加载中...</div>";
+  if(!backendOk){grid.innerHTML="<div style='color:var(--t3);padding:20px;text-align:center'>后端未连接</div>";return}
+  const r=await api("GET","/api/history/list");
+  if(!r||r.error){grid.innerHTML="<div style='color:var(--t3);padding:20px;text-align:center'>加载失败</div>";return}
+  document.getElementById("histSummary").textContent="共 "+r.length+" 条检测记录，点击图片查看原图。";
+  if(!r.length){grid.innerHTML="<div style='color:var(--t3);padding:40px;text-align:center;grid-column:1/-1'>📷 暂无检测记录<br><span style=font-size:.8rem>去「检测工作室」上传图片开始检测吧</span></div>";return}
+  grid.innerHTML=r.map(h=>"<div style='border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg);box-shadow:var(--shadow);cursor:pointer;transition:all .2s' onclick='viewHistDetail(""+h.id+"")'><div style='aspect-ratio:16/10;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center'><img src='"+API+"/api/history/image/"+h.id+"' loading='lazy' style='width:100%;height:100%;object-fit:cover' onerror='this.parentElement.innerHTML="<span style=color:#555>🖼️</span>"'></div><div style='padding:10px 12px'><div style='display:flex;justify-content:space-between;align-items:center'><span style='font-weight:700;font-size:.82rem'>"+(TASK_EMOJI[h.task]||"📷")+" "+(TASK_LABELS[h.task]||h.task)+"</span><span style='font-family:var(--mono);font-size:.7rem;color:var(--brand)'>"+(h.count||0)+" 目标</span></div><div style='font-size:.7rem;color:var(--t2);margin-top:3px'>"+(h.model||"?")+" · "+(h.time||"")+"</div><button class='btn btn-g btn-sm' style='width:100%;margin-top:6px;font-size:.68rem;padding:4px' onclick='event.stopPropagation();deleteHistEntry(""+h.id+"")'>🗑 删除</button></div></div>").join("");
+}
+function viewHistDetail(id){
+  const img=new Image();img.onload=()=>{
+    const overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer";overlay.onclick=()=>overlay.remove();
+    img.style.cssText="max-width:90vw;max-height:90vh;border-radius:8px";overlay.appendChild(img);document.body.appendChild(overlay);
+  };img.src=API+"/api/history/image/"+id;
+}
+async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;const r=await api("DELETE","/api/history/delete/"+id);if(r&&r.deleted){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
+async function clearAllHistory(){if(!confirm("确定清空全部检测历史？此操作不可恢复。"))return;const list=await api("GET","/api/history/list");if(list&&Array.isArray(list)){for(const h of list){await api("DELETE","/api/history/delete/"+h.id)}toast("已清空 "+list.length+" 条记录","ok");loadHistPage()}}
 </script>
 </body>
 </html>
