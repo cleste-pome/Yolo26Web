@@ -4,6 +4,9 @@ venv/
 # 模型权重文件（保留 weights/ 目录结构，不上传 .pt 文件）
 weights/*.pt
 
+# 检测历史记录（含用户图片，不上传）
+history/
+
 # Python 缓存
 __pycache__/
 *.pyc
