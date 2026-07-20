@@ -30,3 +30,4 @@ yolo26/
 # 备份中的大文件
 backups/*.html
 backups/*.py
+runs/*
