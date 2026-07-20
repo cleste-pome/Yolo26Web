@@ -1,8 +1,12 @@
 # 虚拟环境
 venv/
 
-# 模型权重文件（保留 weights/ 目录结构，不上传 .pt 文件）
+# 模型权重文件（只上传最小的 Nano 模型，其余自行下载）
 weights/*.pt
+!weights/yolo26n.pt
+!weights/yolo26n-pose.pt
+!weights/yolo26n-seg.pt
+!weights/yolo26n-cls.pt
 
 # 检测历史记录（含用户图片，不上传）
 history/
