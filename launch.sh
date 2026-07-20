@@ -53,15 +53,15 @@ echo ""
 
 source "$VENV_DIR/bin/activate"
 
-echo "🔧 启动后端服务器 (http://localhost:5001)..."
-python server.py --port 5001 &
+echo "🔧 启动后端服务器 (http://localhost:8050)..."
+python server.py --port 8050 &
 SERVER_PID=$!
 
 # 等待服务器就绪
 echo "⏳ 等待后端就绪..."
 for i in $(seq 1 15); do
     sleep 1
-    if curl -s http://localhost:5001/api/health > /dev/null 2>&1; then
+    if curl -s http://localhost:8050/api/health > /dev/null 2>&1; then
         echo "✅ 后端服务器就绪"
         break
     fi
@@ -70,13 +70,13 @@ done
 
 echo ""
 echo "🌐 打开前端仪表盘..."
-open index.html
+open Yolo26.html
 
 echo ""
 echo "========================================"
 echo "  ✅ 系统已启动"
 echo ""
-echo "  后端 API : http://localhost:5001"
+echo "  后端 API : http://localhost:8050"
 echo "  前端页面 : 已自动打开浏览器"
 echo ""
 echo "  按 Ctrl+C 停止服务器"

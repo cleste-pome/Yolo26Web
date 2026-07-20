@@ -1,35 +1,23 @@
-# 虚拟环境
-venv/
-
-# 模型权重文件（只上传最小的 Nano 模型，其余自行下载）
-weights/*.pt
-!weights/yolo26n.pt
-!weights/yolo26n-pose.pt
-!weights/yolo26n-seg.pt
-!weights/yolo26n-cls.pt
-
-# 检测历史记录（含用户图片，不上传）
-history/
-
-# Python 缓存
-__pycache__/
-*.pyc
-
-# 系统文件
+# macOS
 .DS_Store
 
-# 数据库文件
-*.db
+# IDE
+.idea/
 
-# 克隆的 yolo26 源码（不需要上传）
-yolo26/
-
-# AI 记忆文件
+# Claude AI (聊天记录 / 记忆 / 设置)
 .claude/
 
-# 备份中的大文件
-backups/*.html
-backups/*.py
-runs/*
-uploads/
-backups/
+# 运行时数据库
+*.db
+
+# 检测历史（含用户图片）
+history/
+
+# 推理输出
+runs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/

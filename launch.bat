@@ -56,7 +56,7 @@ timeout /t 5 /nobreak >nul
 
 echo.
 echo 打开前端仪表盘...
-start index.html
+start Yolo26.html
 
 echo.
 echo ========================================

@@ -64,7 +64,7 @@
 │  └─────────┘  └──────────┘  └──────────┘  └──────────────┘ │
 │                         │ fetch() API                         │
 ├─────────────────────────┼────────────────────────────────────┤
-│              Flask Server (localhost:5001)                     │
+│              Flask Server (localhost:8050)                     │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐ │
 │  │ /api/     │  │ /api/     │  │ /api/     │  │ /api/         │ │
 │  │ predict   │  │ train     │  │ models    │  │ history        │ │
@@ -104,7 +104,7 @@ cd yolo26-purestate
 ./launch.sh
 ```
 
-启动后访问 **http://localhost:5001**，左侧导航切换各功能页面。
+启动后访问 **http://localhost:8050**，左侧导航切换各功能页面。
 
 > **Windows 用户**: 运行 `launch.bat --setup` 然后 `launch.bat`
 
@@ -326,7 +326,7 @@ python state_manager.py gc
 ### 推理请求示例
 
 ```bash
-curl -X POST http://localhost:5001/api/predict \
+curl -X POST http://localhost:8050/api/predict \
   -H "Content-Type: application/json" \
   -d '{"model":"yolo26n.pt","task":"detect","conf":0.3,"source":"image.jpg"}'
 ```
@@ -353,7 +353,7 @@ curl -X POST http://localhost:5001/api/predict \
 
 ```
 yolo26-purestate/
-├── index.html          # 前端主页面（单文件，700+ 行）
+├── Yolo26.html         # 前端主页面（单文件，700+ 行）
 ├── server.py           # Flask 后端服务器
 ├── state_manager.py    # 纯净态模型版本管理
 ├── launch.sh           # macOS/Linux 一键启动脚本

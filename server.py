@@ -2,7 +2,7 @@
 """
 YOLO26 后端服务 — 直接调用 ultralytics Python API
 支持：模型下载、目标检测、姿态估计、分割、训练、导出
-启动：python server.py --port 5001
+启动：python server.py --port 8050
 """
 
 import base64, io, json, logging, os, sys, time, threading, uuid, re, traceback
@@ -522,13 +522,13 @@ def model_info():
 @app.route("/")
 def serve_index():
     """提供前端仪表盘页面（走 http:// 协议，摄像头权限正常）"""
-    index_path = Path(__file__).parent / "index.html"
+    index_path = Path(__file__).parent / "Yolo26.html"
     if index_path.exists():
         from flask import Response
         return Response(index_path.read_text(encoding="utf-8"), mimetype="text/html",
                        headers={"Cache-Control":"no-cache, no-store, must-revalidate",
                                "Pragma":"no-cache","Expires":"0"})
-    return "<h1>index.html 未找到</h1>", 404
+    return "<h1>Yolo26.html 未找到</h1>", 404
 
 @app.route("/<path:filename>")
 def serve_static(filename):
@@ -547,7 +547,7 @@ def serve_static(filename):
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser()
-    p.add_argument("--port", type=int, default=5001)
+    p.add_argument("--port", type=int, default=8050)
     p.add_argument("--host", default="0.0.0.0")
     args = p.parse_args()
     print(f"\n{'='*60}")
