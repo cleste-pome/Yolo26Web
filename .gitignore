@@ -31,3 +31,5 @@ yolo26/
 backups/*.html
 backups/*.py
 runs/*
+uploads/
+backups/
