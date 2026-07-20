@@ -117,7 +117,7 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 
 /* ── STUDIO (Detection) ── */
 .studio-wrap{display:flex;height:calc(100vh - 54px);position:relative;background:#000}
-.studio-canvas{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.studio-canvas{flex:1 1 0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:200px}
 #studioVideo,#studioCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 #studioCanvas{z-index:2}
 .studio-empty{text-align:center;z-index:1;color:rgba(255,255,255,.35)}
@@ -126,7 +126,7 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 .studio-empty .sub{font-size:.7rem;color:rgba(255,255,255,.25);margin-top:2px}
 .studio-sidebar{width:300px;min-width:260px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:10px;gap:6px;flex-shrink:0}
 .studio-sidebar h3{font-size:.82rem;font-weight:700}
-.studio-bottom{height:170px;min-height:36px;background:#0d1117;border-top:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.studio-bottom{flex:0 0 38%;min-height:160px;max-height:55%;background:#0d1117;border-top:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden}
 .studio-bottom-h{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:#161b22;border-bottom:1px solid #30363d;cursor:row-resize;user-select:none}
 .studio-bottom-body{flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:.68rem;line-height:1.5;color:#c9d1d9;white-space:pre-wrap}
 .studio-bottom-body .g{color:#3fb950}.studio-bottom-body .r{color:#f85149}.studio-bottom-body .y{color:#d2991d}
@@ -140,11 +140,14 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 .studio-detlist{max-height:120px;overflow-y:auto;font-size:.68rem;font-family:var(--mono)}
 .dr{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;margin-bottom:1px;background:var(--bg)}.dr .dot{width:6px;height:6px;border-radius:2px;flex-shrink:0}.dr .name{flex:1}.dr .conf{color:var(--t2)}
 /* Collapsible studio panels */
-.studio-panel-section{border:1px solid var(--border);border-radius:6px;margin-bottom:3px;overflow:hidden}
-.studio-panel-h{padding:5px 8px;font-size:.68rem;font-weight:700;color:var(--t2);cursor:pointer;user-select:none;display:flex;align-items:center;background:var(--bg);transition:background .15s}
-.studio-panel-h:hover{background:var(--bg3)}
-.studio-panel-b{padding:6px 8px;background:var(--bg2)}
+.studio-panel-section{border:1px solid var(--border);border-radius:8px;margin-bottom:5px}
+.studio-panel-h{padding:7px 10px;font-size:.68rem;font-weight:700;color:var(--t2);cursor:pointer;user-select:none;display:flex;align-items:center;background:var(--bg2);border-radius:8px;transition:all .15s}
+.studio-panel-h:hover{background:var(--bg3);color:var(--text)}
+.studio-panel-b{padding:8px 10px}
 .studio-panel-section.collapsed .studio-panel-b{display:none}
+.studio-panel-section.collapsed .studio-panel-h{border-radius:8px}
+.studio-panel-section:not(.collapsed) .studio-panel-h{border-radius:8px 8px 0 0;border-bottom:1px solid var(--border)}
+.studio-panel-h span:last-child{transition:transform .2s;font-size:.6rem;margin-left:auto}
 .studio-panel-section.collapsed .studio-panel-h span:last-child{transform:rotate(-90deg)}
 .check-row{display:flex;align-items:center;gap:5px;font-size:.7rem;color:var(--t2);padding:2px 0;cursor:pointer}
 .check-row input[type=checkbox]{accent-color:var(--brand)}
@@ -165,7 +168,7 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 @media(max-width:768px){.studio-wrap{flex-direction:column}.studio-canvas{min-height:350px}.studio-sidebar{width:100%;border-left:none;border-top:1px solid var(--border)}.cards{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
+<body data-version="20260720-fixed">
 <div class="toasts" id="toasts"></div>
 
 <!-- ═══ SIDEBAR ═══ -->
@@ -232,7 +235,7 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
       <!-- 模型 + 设备 -->
       <div class="studio-panel-section"><div class="studio-panel-h">📐 模型与设备</div><div class="studio-panel-b">
       <div class="ctrl-group"><label>模型 <span id="stuModelWarn" style="color:var(--amber)"></span></label><select id="stuModelSel" onchange="onStuModelChange()"></select></div>
-      <div class="ctrl-group"><label>推理设备</label><select id="stuDeviceSel"><option value="cpu" selected>CPU（本机最快 ~50ms）</option><option value="mps">Apple MPS GPU</option></select></div>
+      <div class="ctrl-group"><label>推理设备</label><select id="stuDeviceSel"><option value="cpu">🖥 CPU（通用）</option><option value="mps">🍎 Apple MPS GPU（Mac 推荐）</option><option value="0">🎮 NVIDIA CUDA GPU:0</option><option value="0,1">🎮 NVIDIA CUDA 多GPU:0,1</option></select></div>
       </div></div>
 
       <!-- 常用参数（始终展开） -->
@@ -370,7 +373,7 @@ const MDATA={detect:{cols:['变体','mAP 50-95','T4速度','CPU速度','参数(M
 const INTEGRATIONS=[{icon:'📊',name:'Weights & Biases',desc:'实验追踪 · 超参优化 · 模型注册'},{icon:'☄️',name:'Comet ML',desc:'实验管理 · 可视化 · 生产监控'},{icon:'🤖',name:'Roboflow',desc:'数据标注 · 预处理 · 数据集管理'},{icon:'🔷',name:'Intel OpenVINO',desc:'Intel 硬件优化推理'},{icon:'🔗',name:'ONNX',desc:'跨平台模型部署'},{icon:'🚀',name:'TensorRT',desc:'NVIDIA GPU 加速'},{icon:'🍎',name:'CoreML',desc:'Apple 生态部署'},{icon:'🌀',name:'MLflow',desc:'ML 生命周期管理'}];
 const EXPORTS=['ONNX','TensorRT','CoreML','TFLite','OpenVINO','TorchScript','TF.js','PaddlePaddle','NCNN','MNN','RKNN','QNN','Hailo','Axelera','Executorch','Sony IMX500','Edge TPU','LiteRT','TF SavedModel'];
 
-let backendOk=false,curPage='home';
+let backendOk=false,curPage='home',systemDevice='cpu';
 // Studio state
 let stuTask='detect',stuWebcamOn=false,stuCamStream=null,stuRaf=null,stuImgMode=false,stuImgEl=null,stuCachedImg=null;
 let stuLiveDets=[],stuCanvasSz={w:0,h:0},stuResizeObs=null,stuLastPred=0,stuPredMs=120;
@@ -382,8 +385,8 @@ let tMode='train',tTraining=false,tTimer=null;
 let mCurTask='detect',dlFilter='all';
 
 // ── INIT ──
-document.addEventListener('DOMContentLoaded',()=>{
-  initNav();checkBackend();loadStuHistory();
+document.addEventListener('DOMContentLoaded',()=>{try{
+  initNav();checkBackend();detectDevice();loadStuHistory();
   renderMTabs();renderMTable();renderDlTabs();refreshDL();
   renderTrain();updateTCode();renderTest();updateXCode();renderStuTaskBtns();stuPopulateModels();
   document.getElementById('intGrid').innerHTML=INTEGRATIONS.map(i=>`<div class="int-card"><span class="icon">${i.icon}</span><h4>${i.name}</h4><p>${i.desc}</p></div>`).join('');
@@ -394,18 +397,20 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Bottom panel resize
   const bh=document.querySelector('.studio-bottom-h');if(bh){let sy,sh;bh.addEventListener('mousedown',e=>{sy=e.clientY;sh=document.getElementById('stuBottom').offsetHeight;const mv=e=>{document.getElementById('stuBottom').style.height=Math.max(40,Math.min(500,sh+sy-e.clientY))+'px'};document.addEventListener('mousemove',mv);document.addEventListener('mouseup',()=>document.removeEventListener('mousemove',mv),{once:true})})}
   setupStuDnD();
+}catch(e){document.body.innerHTML+='<div style="position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:10px;z-index:9999;font-family:monospace">❌ JS错误: '+e.message+' (行:'+e.lineNumber+')</div>';console.error(e)}
 });
 
 // ── THEME ──
 function toggleTheme(){const d=document.documentElement;const themes=['light','warm','dark'];const labels=['☀️ 浅色','🍂 暖色','🌙 深色'];const cur=d.getAttribute('data-theme')||'light';const idx=themes.indexOf(cur);const next=themes[(idx+1)%3];d.setAttribute('data-theme',next);document.getElementById('themeLabel').textContent=labels[(idx+1)%3];localStorage.setItem('theme',next)}
 function toast(m,t='info'){const c=document.getElementById('toasts'),d=document.createElement('div');d.className='toast '+t;d.textContent=m;c.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300)},2400)}
-async function checkBackend(){try{const r=await fetch(API+'/api/health');backendOk=(await r.json()).status==='ok'}catch(e){backendOk=false}document.getElementById('navStatus').innerHTML=backendOk?'<span style="color:var(--green)">● YOLO MPS</span>':'<span style="color:var(--red)">● 离线</span>'}setInterval(checkBackend,12000);
+async function checkBackend(){try{const r=await fetch(API+'/api/health');backendOk=(await r.json()).status==='ok'}catch(e){backendOk=false}document.getElementById('navStatus').innerHTML=backendOk?'<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>':'<span style="color:var(--red)">● 离线</span>'}setInterval(checkBackend,12000);
+async function detectDevice(){try{const r=await fetch(API+'/api/system/info');if(r.ok){const d=await r.json();systemDevice=d.device||'cpu';const sel=document.getElementById('stuDeviceSel');if(sel){if(systemDevice==='mps'){sel.value='mps'}else if(systemDevice==='cuda'){sel.value='0'}else{sel.value='cpu'}};document.getElementById('navStatus').innerHTML='<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>'}}catch(e){}}
 async function api(method,path,body){try{const o={method,headers:{'Content-Type':'application/json'}};if(body)o.body=JSON.stringify(body);const r=await fetch(API+path,o);if(!r.ok){const e=await r.json().catch(()=>({}));return{error:e.error||r.statusText}}return await r.json()}catch(e){return{error:'连接失败'}}}
 
 // ── PAGE SWITCHING ──
-function initNav(){document.querySelectorAll('.nav-item').forEach(item=>item.addEventListener('click',function(){switchPage(this.dataset.page)}))}
+function initNav(){const sb=document.querySelector('.sidebar-nav');if(sb){sb.addEventListener('click',function(e){const btn=e.target.closest('.nav-item');if(btn&&btn.dataset.page)switchPage(btn.dataset.page)})}}
 function switchPage(page){
-  curPage=page;
+  if(!page)return;curPage=page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const pg=document.getElementById('page-'+page);if(pg)pg.classList.add('active');
@@ -702,7 +707,7 @@ function tExec(){if(tTraining){tTraining=false;clearInterval(tTimer);document.ge
 
 // ═══════════════════════ 测试控制台 ═══════════════════════
 const X_SNIPPETS={val:`<span class="kw">from</span> ultralytics <span class="kw">import</span> <span class="fn">YOLO</span>\n\nmodel = <span class="fn">YOLO</span>(<span class="str">"MODEL"</span>)\nmetrics = model.<span class="fn">val</span>(\n    data=<span class="str">"DATA"</span>,\n    split=<span class="str">"SPLIT"</span>,\n    imgsz=<span class="num">IMSZ</span>,\n    device=<span class="str">"DEVICE"</span>,\n    conf=<span class="num">CONF</span>,\n    iou=<span class="num">IOU</span>,\n    max_det=<span class="num">MAXDET</span>,\n)`,predict:`<span class="kw">from</span> ultralytics <span class="kw">import</span> <span class="fn">YOLO</span>\n\nmodel = <span class="fn">YOLO</span>(<span class="str">"MODEL"</span>)\nresults = model(\n    <span class="str">"SOURCE"</span>,\n    conf=<span class="num">CONF</span>,\n    iou=<span class="num">IOU</span>,\n    imgsz=<span class="num">IMSZ</span>,\n    device=<span class="str">"DEVICE"</span>,\n    max_det=<span class="num">MAXDET</span>,\n    augment=<span class="kw">AUGMENT</span>,\n    agnostic_nms=<span class="kw">AGNOSTIC</span>,\n)`,export:`<span class="kw">from</span> ultralytics <span class="kw">import</span> <span class="fn">YOLO</span>\n\nmodel = <span class="fn">YOLO</span>(<span class="str">"MODEL"</span>)\nmodel.<span class="fn">export</span>(\n    format=<span class="str">"FORMAT"</span>,\n    imgsz=<span class="num">IMSZ</span>,\n    device=<span class="str">"DEVICE"</span>,\n    dynamic=<span class="kw">DYNAMIC</span>,\n    simplify=<span class="kw">SIMPLIFY</span>,\n    half=<span class="kw">HALF</span>,\n    opset=<span class="num">OPSET</span>,\n)`};
-const X_PANELS={val:[{title:"📊 验证设置",fields:[{id:"vm2",l:"模型文件",t:"path",d:"runs/detect/train/weights/best.pt"},{id:"vd2",l:"数据集",t:"sel",o:["coco8.yaml","coco128.yaml","coco.yaml"],d:"coco8.yaml"},{id:"vSplit2",l:"数据划分",t:"sel",o:["val","test","train"],d:"val"},{id:"vi2",l:"图像尺寸",t:"sel",o:["320","480","640","960","1280"],d:"640"},{id:"vv2",l:"设备",t:"sel",o:["cpu","mps","0"],d:"cpu"},{id:"vConf2",l:"置信度阈值",t:"rng",min:0.001,max:0.5,d:0.001,step:0.001},{id:"vIou2",l:"IoU阈值",t:"rng",min:0.1,max:0.95,d:0.7,step:0.05},{id:"vMaxDet2",l:"最大检测数",t:"rng",min:1,max:500,d:300},{id:"vSaveJSON2",l:"保存COCOJSON",t:"chk"},{id:"vPlots2",l:"保存图表",t:"chk",d:true}]}],predict:[{title:"🔍 推理设置",fields:[{id:"pm2",l:"模型文件",t:"sel",o:["yolo26n.pt","yolo26s.pt","yolo26m.pt","yolo26l.pt","yolo26x.pt"],d:"yolo26n.pt"},{id:"ps2",l:"图片来源",t:"path",d:"image.jpg"},{id:"pi2",l:"图像尺寸",t:"sel",o:["320","480","640","960","1280"],d:"640"},{id:"pv2",l:"设备",t:"sel",o:["cpu","mps","0"],d:"cpu"},{id:"pConf2",l:"置信度阈值",t:"rng",min:0.05,max:0.95,d:0.25,step:0.05},{id:"pIou2",l:"IoU阈值",t:"rng",min:0.1,max:0.95,d:0.7,step:0.05},{id:"pMaxDet2",l:"最大检测数",t:"rng",min:1,max:500,d:300},{id:"pAugment2",l:"测试时增强(augment)",t:"chk"},{id:"pAgnostic2",l:"类别无关NMS(agnostic_nms)",t:"chk"},{id:"pClasses2",l:"类别过滤(逗号分隔)",t:"txt",d:""},{id:"pSave2",l:"保存结果",t:"chk"},{id:"pSaveTxt2",l:"保存TXT标注",t:"chk"}]}],export:[{title:"📦 导出设置",fields:[{id:"em2",l:"模型文件",t:"sel",o:["yolo26n.pt","yolo26s.pt","yolo26m.pt","yolo26l.pt","yolo26x.pt"],d:"yolo26n.pt"},{id:"ef2",l:"导出格式",t:"sel",o:["onnx","tensorrt","coreml","tflite","openvino","torchscript","tfjs","paddle","ncnn","mnn","rknn","hailo"],d:"onnx"},{id:"ei2",l:"图像尺寸",t:"sel",o:["320","480","640","960","1280"],d:"640"},{id:"ev2",l:"设备",t:"sel",o:["cpu","0"],d:"cpu"},{id:"eDynamic2",l:"动态形状(dynamic)",t:"chk"},{id:"eSimplify2",l:"简化ONNX(simplify)",t:"chk",d:true},{id:"eHalf2",l:"FP16半精度(half)",t:"chk"},{id:"eOpset2",l:"ONNXopset",t:"sel",o:["11","12","13","14","15","16","17"],d:"12"},{id:"eNMS2",l:"融合NMS(nms)",t:"chk"}]}]};
+const X_PANELS={val:[{title:"📊 验证设置",fields:[{id:"vm2",l:"模型文件",t:"path",d:"runs/detect/train/weights/best.pt"},{id:"vd2",l:"数据集",t:"sel",o:["coco8.yaml","coco128.yaml","coco.yaml"],d:"coco8.yaml"},{id:"vSplit2",l:"数据划分",t:"sel",o:["val","test","train"],d:"val"},{id:"vi2",l:"图像尺寸",t:"sel",o:["320","480","640","960","1280"],d:"640"},{id:"vv2",l:"设备",t:"sel",o:["cpu","mps","0","0,1"],d:"cpu"},{id:"vConf2",l:"置信度阈值",t:"rng",min:0.001,max:0.5,d:0.001,step:0.001},{id:"vIou2",l:"IoU阈值",t:"rng",min:0.1,max:0.95,d:0.7,step:0.05},{id:"vMaxDet2",l:"最大检测数",t:"rng",min:1,max:500,d:300},{id:"vSaveJSON2",l:"保存COCOJSON",t:"chk"},{id:"vPlots2",l:"保存图表",t:"chk",d:true}]}],predict:[{title:"🔍 推理设置",fields:[{id:"pm2",l:"模型文件",t:"sel",o:["yolo26n.pt","yolo26s.pt","yolo26m.pt","yolo26l.pt","yolo26x.pt"],d:"yolo26n.pt"},{id:"ps2",l:"图片来源",t:"path",d:"image.jpg"},{id:"pi2",l:"图像尺寸",t:"sel",o:["320","480","640","960","1280"],d:"640"},{id:"pv2",l:"设备",t:"sel",o:["cpu","mps","0","0,1"],d:"cpu"},{id:"pConf2",l:"置信度阈值",t:"rng",min:0.05,max:0.95,d:0.25,step:0.05},{id:"pIou2",l:"IoU阈值",t:"rng",min:0.1,max:0.95,d:0.7,step:0.05},{id:"pMaxDet2",l:"最大检测数",t:"rng",min:1,max:500,d:300},{id:"pAugment2",l:"测试时增强(augment)",t:"chk"},{id:"pAgnostic2",l:"类别无关NMS(agnostic_nms)",t:"chk"},{id:"pClasses2",l:"类别过滤(逗号分隔)",t:"txt",d:""},{id:"pSave2",l:"保存结果",t:"chk"},{id:"pSaveTxt2",l:"保存TXT标注",t:"chk"}]}],export:[{title:"📦 导出设置",fields:[{id:"em2",l:"模型文件",t:"sel",o:["yolo26n.pt","yolo26s.pt","yolo26m.pt","yolo26l.pt","yolo26x.pt"],d:"yolo26n.pt"},{id:"ef2",l:"导出格式",t:"sel",o:["onnx","tensorrt","coreml","tflite","openvino","torchscript","tfjs","paddle","ncnn","mnn","rknn","hailo"],d:"onnx"},{id:"ei2",l:"图像尺寸",t:"sel",o:["320","480","640","960","1280"],d:"640"},{id:"ev2",l:"设备",t:"sel",o:["cpu","0"],d:"cpu"},{id:"eDynamic2",l:"动态形状(dynamic)",t:"chk"},{id:"eSimplify2",l:"简化ONNX(simplify)",t:"chk",d:true},{id:"eHalf2",l:"FP16半精度(half)",t:"chk"},{id:"eOpset2",l:"ONNXopset",t:"sel",o:["11","12","13","14","15","16","17"],d:"12"},{id:"eNMS2",l:"融合NMS(nms)",t:"chk"}]}]};
 let xMode="val";
 function renderTest(){const cfg=X_PANELS[xMode]||X_PANELS.val;let h=`<h3>⚙️ ${{val:"验证",predict:"推理",export:"导出"}[xMode]}配置</h3>`;cfg.forEach(p=>{h+=`<div class="studio-panel-section"><div class="studio-panel-h" onclick="this.parentElement.classList.toggle('collapsed')">${p.title} <span style="font-size:.6rem;margin-left:auto">▼</span></div><div class="studio-panel-b">`;p.fields.forEach(f=>{if(f.t==="sel")h+=`<div class="cfg-r"><label>${f.l}</label><select id="${f.id}" onchange="updateXCode()">${f.o.map(o=>`<option value="${o}" ${o===f.d?"selected":""}>${o}</option>`).join("")}</select></div>`;else if(f.t==="rng")h+=`<div class="cfg-r"><label>${f.l} <span style="font-family:var(--mono);color:var(--brand)" id="${f.id}V">${f.d}</span></label><input type="range" id="${f.id}" min="${f.min}" max="${f.max}" value="${f.d}" step="${f.step||1}" oninput="document.getElementById('${f.id}V').textContent=this.value;updateXCode()"></div>`;else if(f.t==="chk")h+=`<label class="check-row"><input type="checkbox" id="${f.id}" ${f.d?"checked":""} onchange="updateXCode()"> ${f.l}</label>`;else if(f.t==="path")h+=`<div class="cfg-r"><label>${f.l}</label><div style="display:flex;gap:4px"><input id="${f.id}" value="${f.d||''}" style="flex:1;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--mono);font-size:.73rem" onchange="updateXCode()"><button class="btn btn-g btn-sm" style="width:auto;padding:4px 10px;font-size:.7rem" onclick="document.getElementById('${f.id}_file').click()">📁</button></div><input type="file" id="${f.id}_file" style="display:none" onchange="if(this.files[0]){document.getElementById('${f.id}').value=this.files[0].webkitRelativePath||this.files[0].name};updateXCode()"></div>`;else h+=`<div class="cfg-r"><label>${f.l}</label><input id="${f.id}" value="${f.d||''}" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--mono);font-size:.73rem" onchange="updateXCode()"></div>`});h+=`</div></div>`});const labels={val:"▶ 运行验证",predict:"▶ 运行推理",export:"▶ 导出模型"};h+=`<button class="btn btn-p" onclick="xExec()">${labels[xMode]||"▶ 执行"}</button>`;document.getElementById("xCfgPanel").innerHTML=h}
 function xGet(id,d){const e=document.getElementById(id);return e?(e.type==="checkbox"?e.checked:e.value):d}
@@ -711,24 +716,32 @@ function xExec(){const log=document.getElementById("xCodeBlock");if(xMode==="val
 
 
 // ═══════════════════════ 检测历史页面 ═══════════════════════
+async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;const r=await api("DELETE","/api/history/delete/"+id);if(r&&r.deleted){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
+async function clearAllHistory(){if(!confirm("确定清空全部检测历史？此操作不可恢复。"))return;const list=await api("GET","/api/history/list");if(list&&Array.isArray(list)){for(const h of list){await api("DELETE","/api/history/delete/"+h.id)}toast("已清空 "+list.length+" 条记录","ok");loadHistPage()}}
+
 async function loadHistPage(){
-  const grid=document.getElementById("histGrid");
-  grid.innerHTML="<div style='color:var(--t3);padding:20px;text-align:center'>加载中...</div>";
-  if(!backendOk){grid.innerHTML="<div style='color:var(--t3);padding:20px;text-align:center'>后端未连接</div>";return}
-  const r=await api("GET","/api/history/list");
-  if(!r||r.error){grid.innerHTML="<div style='color:var(--t3);padding:20px;text-align:center'>加载失败</div>";return}
+  var grid=document.getElementById("histGrid");
+  grid.innerHTML="<div style=color:var(--t3);padding:20px;text-align:center>加载中...</div>";
+  if(!backendOk){grid.innerHTML="<div style=color:var(--t3);padding:20px;text-align:center>后端未连接</div>";return}
+  var r=await api("GET","/api/history/list");
+  if(!r||r.error){grid.innerHTML="<div style=color:var(--t3);padding:20px;text-align:center>加载失败</div>";return}
   document.getElementById("histSummary").textContent="共 "+r.length+" 条检测记录，点击图片查看原图。";
-  if(!r.length){grid.innerHTML="<div style='color:var(--t3);padding:40px;text-align:center;grid-column:1/-1'>📷 暂无检测记录<br><span style=font-size:.8rem>去「检测工作室」上传图片开始检测吧</span></div>";return}
-  grid.innerHTML=r.map(h=>"<div style='border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg);box-shadow:var(--shadow);cursor:pointer;transition:all .2s' onclick='viewHistDetail(""+h.id+"")'><div style='aspect-ratio:16/10;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center'><img src='"+API+"/api/history/image/"+h.id+"' loading='lazy' style='width:100%;height:100%;object-fit:cover' onerror='this.parentElement.innerHTML="<span style=color:#555>🖼️</span>"'></div><div style='padding:10px 12px'><div style='display:flex;justify-content:space-between;align-items:center'><span style='font-weight:700;font-size:.82rem'>"+(TASK_EMOJI[h.task]||"📷")+" "+(TASK_LABELS[h.task]||h.task)+"</span><span style='font-family:var(--mono);font-size:.7rem;color:var(--brand)'>"+(h.count||0)+" 目标</span></div><div style='font-size:.7rem;color:var(--t2);margin-top:3px'>"+(h.model||"?")+" · "+(h.time||"")+"</div><button class='btn btn-g btn-sm' style='width:100%;margin-top:6px;font-size:.68rem;padding:4px' onclick='event.stopPropagation();deleteHistEntry(""+h.id+"")'>🗑 删除</button></div></div>").join("");
+  if(!r.length){grid.innerHTML="<div style=color:var(--t3);padding:40px;text-align:center;grid-column:1/-1>暂无检测记录<br><span style=font-size:.8rem>去检测工作室上传图片开始检测吧</span></div>";return}
+  var html="";
+  for(var i=0;i<r.length;i++){
+    var h=r[i];
+    html+="<div style=border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg);box-shadow:var(--shadow);cursor:pointer onclick=viewHistDetail("+h.id+")><div style=aspect-ratio:16/10;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center><img src="+API+"/api/history/image/"+h.id+" loading=lazy style=width:100%;height:100%;object-fit:cover onerror=this.parentElement.innerHTML='<span style=color:#555>'></div><div style=padding:10px 12px><div style=display:flex;justify-content:space-between;align-items:center><span style=font-weight:700;font-size:.82rem>"+(TASK_EMOJI[h.task]||"")+" "+(TASK_LABELS[h.task]||h.task)+"</span><span style=font-family:var(--mono);font-size:.7rem;color:var(--brand)>"+(h.count||0)+" 目标</span></div><div style=font-size:.7rem;color:var(--t2);margin-top:3px>"+(h.model||"?")+" · "+(h.time||"")+"</div><button class='btn btn-g btn-sm' style=width:100%;margin-top:6px;font-size:.68rem;padding:4px onclick=event.stopPropagation();deleteHistEntry("+h.id+")>删除</button></div></div>";
+  }
+  grid.innerHTML=html;
 }
 function viewHistDetail(id){
-  const img=new Image();img.onload=()=>{
-    const overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer";overlay.onclick=()=>overlay.remove();
+  var img=new Image();img.onload=function(){
+    var overlay=document.createElement("div");overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;cursor:pointer";overlay.onclick=function(){overlay.remove()};
     img.style.cssText="max-width:90vw;max-height:90vh;border-radius:8px";overlay.appendChild(img);document.body.appendChild(overlay);
   };img.src=API+"/api/history/image/"+id;
 }
-async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;const r=await api("DELETE","/api/history/delete/"+id);if(r&&r.deleted){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
-async function clearAllHistory(){if(!confirm("确定清空全部检测历史？此操作不可恢复。"))return;const list=await api("GET","/api/history/list");if(list&&Array.isArray(list)){for(const h of list){await api("DELETE","/api/history/delete/"+h.id)}toast("已清空 "+list.length+" 条记录","ok");loadHistPage()}}
+async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;var r=await api("DELETE","/api/history/delete/"+id);if(r&&r.deleted){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
+async function clearAllHistory(){if(!confirm("确定清空全部检测历史？"))return;var list=await api("GET","/api/history/list");if(list&&Array.isArray(list)){for(var i=0;i<list.length;i++){await api("DELETE","/api/history/delete/"+list[i].id)}toast("已清空 "+list.length+" 条记录","ok");loadHistPage()}}
 </script>
 </body>
 </html>

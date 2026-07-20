@@ -447,6 +447,30 @@ def delete_history(entry_id):
             deleted += 1
     return jsonify({"deleted": deleted > 0})
 
+# ── 硬件检测 ──────────────────────────────────────────
+@app.route("/api/system/info")
+def system_info():
+    """检测硬件设备，返回推荐的推理设备"""
+    import torch, platform
+    info = {
+        "platform": platform.system(),
+        "machine": platform.machine(),
+        "python": platform.python_version(),
+        "pytorch": torch.__version__,
+    }
+    # 检测最佳设备
+    if torch.cuda.is_available():
+        info["device"] = "cuda"
+        info["device_name"] = torch.cuda.get_device_name(0)
+        info["gpu_count"] = torch.cuda.device_count()
+    elif torch.backends.mps.is_available():
+        info["device"] = "mps"
+        info["device_name"] = "Apple MPS (Metal Performance Shaders)"
+    else:
+        info["device"] = "cpu"
+        info["device_name"] = platform.processor() or "CPU"
+    return jsonify(info)
+
 # ── 模型信息 ─────────────────────────────────────────
 @app.route("/api/models/info")
 def model_info():
