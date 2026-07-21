@@ -417,6 +417,7 @@ document.addEventListener('DOMContentLoaded',()=>{try{
 function toggleTheme(){const d=document.documentElement;const themes=['light','warm','dark'];const labels=['☀️ 浅色','🍂 暖色','🌙 深色'];const cur=d.getAttribute('data-theme')||'light';const idx=themes.indexOf(cur);const next=themes[(idx+1)%3];d.setAttribute('data-theme',next);document.getElementById('themeLabel').textContent=labels[(idx+1)%3];localStorage.setItem('theme',next)}
 function toast(m,t='info'){const c=document.getElementById('toasts'),d=document.createElement('div');d.className='toast '+t;d.textContent=m;c.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300)},2400)}
 async function checkBackend(){try{const r=await fetch(API+'/api/health',{signal:AbortSignal.timeout(5000)});backendOk=(await r.json()).status==='ok';document.getElementById('connOverlay').classList.add('hidden')}catch(e){backendOk=false;document.getElementById('connOverlay').classList.remove('hidden')}document.getElementById('navStatus').innerHTML=backendOk?'<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>':'<span style="color:var(--red)">● 离线</span>'}checkBackend();setInterval(checkBackend,12000);
+function drawImgContain(c,img){const r=c.parentElement.getBoundingClientRect();c.width=Math.floor(r.width);c.height=Math.floor(r.height);const ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#000";ctx.fillRect(0,0,c.width,c.height);const sc=Math.min(c.width/img.width,c.height/img.height),dw=Math.round(img.width*sc),dh=Math.round(img.height*sc);ctx.drawImage(img,Math.round((c.width-dw)/2),Math.round((c.height-dh)/2),dw,dh)}
 async function detectDevice(){try{const r=await fetch(API+'/api/system/info');if(r.ok){const d=await r.json();systemDevice=d.device||'cpu';const sel=document.getElementById('stuDeviceSel');if(sel){if(systemDevice==='mps'){sel.value='mps'}else if(systemDevice==='cuda'){sel.value='0'}else{sel.value='cpu'}};document.getElementById('navStatus').innerHTML='<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>'}}catch(e){}}
 async function api(method,path,body){try{const o={method,headers:{'Content-Type':'application/json'}};if(body)o.body=JSON.stringify(body);const r=await fetch(API+path,o);if(!r.ok){const e=await r.json().catch(()=>({}));return{error:e.error||r.statusText}}return await r.json()}catch(e){return{error:'连接失败'}}}
 
@@ -584,7 +585,7 @@ function stuClearImg(){
 async function stuRunImgPredict(b64){
   const params=stuGetPredictParams();const r=await api("POST","/api/predict",{...params,source:b64});
   if(!r||r.error){toast("推理失败: "+(r?.error||"?"),"err");return}
-  if(r.annotated_b64){const ann=new Image();ann.onload=()=>{const c=document.getElementById("studioCanvas");c.getContext("2d").drawImage(ann,0,0,c.width,c.height)};ann.src="data:image/jpeg;base64,"+r.annotated_b64}
+  if(r.annotated_b64){const ann=new Image();ann.onload=()=>{drawImgContain(document.getElementById("studioCanvas"),ann)};ann.src="data:image/jpeg;base64,"+r.annotated_b64}
   stuTaskCache[stuTask]={dets:r.detections,annot:r.annotated_b64,metrics:r.speed_ms,model:params.model};
   stuUpdatePanel(r,params.model);stuSaveToHistory(r,params.model,b64);
   toast("✅ "+(r.detections||[]).length+" 个目标","ok");
@@ -592,7 +593,7 @@ async function stuRunImgPredict(b64){
 
 function stuRestoreCache(task){
   const r=stuTaskCache[task];if(!r||!r.annot)return;
-  const ann=new Image();ann.onload=()=>{const c=document.getElementById("studioCanvas");c.getContext("2d").drawImage(ann,0,0,c.width,c.height)};ann.src="data:image/jpeg;base64,"+r.annot;
+  const ann=new Image();ann.onload=()=>{drawImgContain(document.getElementById("studioCanvas"),ann)};ann.src="data:image/jpeg;base64,"+r.annot;
   stuUpdatePanel({detections:r.dets,speed_ms:r.metrics},r.model);
 }
 
@@ -621,7 +622,7 @@ function stuToggleView(){
   const showAnnot=document.getElementById("stuShowAnnot").checked;
   const c=document.getElementById("studioCanvas"),ctx=c.getContext("2d");
   if(showAnnot&&stuTaskCache[stuTask]&&stuTaskCache[stuTask].annot){
-    const ann=new Image();ann.onload=()=>{ctx.drawImage(ann,0,0,c.width,c.height)};ann.src="data:image/jpeg;base64,"+stuTaskCache[stuTask].annot;
+    const ann=new Image();ann.onload=()=>{drawImgContain(c,ann)};ann.src="data:image/jpeg;base64,"+stuTaskCache[stuTask].annot;
   }else if(stuImgEl){
     ctx.fillStyle="#000";ctx.fillRect(0,0,c.width,c.height);
     const sc=Math.min(c.width/stuImgEl.width,c.height/stuImgEl.height);
@@ -654,8 +655,8 @@ async function stuSaveToHistory(r,m,b64){
 function renderStuHistory(){const el=document.getElementById("stuHistList");document.getElementById("stuHistCount").textContent=`(${stuHistory.length})`;if(!stuHistory.length){el.innerHTML="<div style=\"color:var(--t3);text-align:center;padding:8px\">暂无记录</div>";return}el.innerHTML=stuHistory.map((h,i)=>`<div class="dr" style="cursor:pointer" onclick="stuLoadHistory(${i})"><span>${TASK_EMOJI[h.task]||""}</span><span class="name">${(h.detections||[]).length}目标</span><span class="conf" style="font-size:.6rem">${h.model}</span><button class="btn btn-g btn-sm" style="padding:1px 5px;font-size:.6rem;width:auto" onclick="event.stopPropagation();stuDelHistory(${i})">✕</button></div>`).join("")}
 function stuLoadHistory(i){const h=stuHistory[i];if(!h)return;stuTask=h.task;renderStuTaskBtns();stuPopulateModels();document.getElementById("stuModelSel").value=h.model;stuImgMode=true;document.getElementById("stuEmpty").style.display="none";document.getElementById("studioCanvas").style.display="block";document.getElementById("stuBtnClear").style.display="";document.getElementById("stuBtnRedetect").style.display="";const c=document.getElementById("studioCanvas");c.width=c.parentElement.getBoundingClientRect().width;c.height=c.parentElement.getBoundingClientRect().height;
   // 优先从后端加载完整标注图
-  if(backendOk){const img=new Image();img.onload=()=>{c.getContext("2d").drawImage(img,0,0,c.width,c.height)};img.src=API+"/api/history/image/"+h.id;img.onerror=()=>{if(h.annotated){const a=new Image();a.onload=()=>{c.getContext("2d").drawImage(a,0,0,c.width,c.height)};a.src="data:image/jpeg;base64,"+h.annotated}}}
-  else if(h.annotated){const ann=new Image();ann.onload=()=>{c.getContext("2d").drawImage(ann,0,0,c.width,c.height)};ann.src="data:image/jpeg;base64,"+h.annotated}
+  if(backendOk){const img=new Image();img.onload=()=>{drawImgContain(c,img)};img.src=API+"/api/history/image/"+h.id;img.onerror=()=>{if(h.annotated){const a=new Image();a.onload=()=>{drawImgContain(c,a)};a.src="data:image/jpeg;base64,"+h.annotated}}}
+  else if(h.annotated){const ann=new Image();ann.onload=()=>{drawImgContain(c,ann)};ann.src="data:image/jpeg;base64,"+h.annotated}
   stuUpdatePanel({detections:h.detections,speed_ms:{}},h.model);
 }
 function stuDelHistory(i){stuHistory.splice(i,1);localStorage.setItem("yolo26_studio_hist",JSON.stringify(stuHistory));renderStuHistory()}

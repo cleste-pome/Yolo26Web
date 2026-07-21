@@ -188,6 +188,87 @@ def download_model():
 def cached_models():
     return jsonify(list(MODEL_CACHE.keys()))
 
+# ── 科技风标注 ──────────────────────────────────
+def draw_tech_boxes(pil_img, result):
+    """在原图上绘制科技风检测框，保持原始宽高比"""
+    from PIL import ImageDraw, ImageFont
+    import numpy as np
+
+    img = pil_img.copy()
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+
+    # 科技风配色（霓虹色系）
+    PALETTE = [
+        (0, 229, 255),    # 青
+        (0, 255, 136),    # 绿
+        (68, 138, 255),   # 蓝
+        (180, 128, 255),  # 紫
+        (255, 145, 0),    # 橙
+        (255, 64, 129),   # 粉
+    ]
+
+    # 尝试加载等宽字体
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/Menlo.ttc", 13)
+    except Exception:
+        try:
+            font = ImageFont.truetype("/System/Library/Fonts/Courier.ttc", 13)
+        except Exception:
+            font = ImageFont.load_default()
+
+    boxes = result.boxes
+    if boxes is None:
+        return img
+
+    for i in range(len(boxes)):
+        box = boxes.xyxy[i].cpu().numpy()
+        cls_id = int(boxes.cls[i]) if boxes.cls is not None else 0
+        conf = float(boxes.conf[i]) if boxes.conf is not None else 0
+        name = (result.names or {}).get(cls_id, f"cls_{cls_id}")
+        color = PALETTE[cls_id % len(PALETTE)]
+
+        x1, y1, x2, y2 = [int(v) for v in box]
+        bw, bh = x2 - x1, y2 - y1
+        # 角标长度：短边的 20%，15~40px
+        cl = max(15, min(40, int(min(bw, bh) * 0.2)))
+
+        # ── 角标（4 个 L 形角）──
+        lw = max(2, int(min(bw, bh) / 200))
+        # 左上
+        draw.line([(x1, y1 + cl), (x1, y1), (x1 + cl, y1)], fill=color, width=lw + 1)
+        # 右上
+        draw.line([(x2 - cl, y1), (x2, y1), (x2, y1 + cl)], fill=color, width=lw + 1)
+        # 右下
+        draw.line([(x2, y2 - cl), (x2, y2), (x2 - cl, y2)], fill=color, width=lw + 1)
+        # 左下
+        draw.line([(x1 + cl, y2), (x1, y2), (x1, y2 - cl)], fill=color, width=lw + 1)
+
+        # ── 边框细连线（半透明感用稍暗颜色）──
+        edge = tuple(max(0, c - 80) for c in color)
+        draw.line([(x1 + cl + 2, y1), (x2 - cl - 2, y1)], fill=edge, width=lw)
+        draw.line([(x1 + cl + 2, y2), (x2 - cl - 2, y2)], fill=edge, width=lw)
+        draw.line([(x1, y1 + cl + 2), (x1, y2 - cl - 2)], fill=edge, width=lw)
+        draw.line([(x2, y1 + cl + 2), (x2, y2 - cl - 2)], fill=edge, width=lw)
+
+        # ── 标签 ──
+        label = f"{name} {conf:.0%}"
+        bbox = draw.textbbox((0, 0), label, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        pad = 6
+        lx1, ly1 = x1, max(0, y1 - th - pad * 2)
+        lx2, ly2 = min(w, x1 + tw + pad * 2), y1
+
+        # 标签背景
+        draw.rectangle([lx1, ly1, lx2, ly2], fill=(10, 14, 20))
+        # 底部色条
+        draw.line([(lx1, ly2), (lx2, ly2)], fill=color, width=2)
+        # 文字
+        draw.text((lx1 + pad, ly1 + pad), label, fill=(255, 255, 255), font=font)
+
+    return img
+
+
 # ── 推理 ────────────────────────────────────────────
 @app.route("/api/predict", methods=["POST"])
 def predict():
@@ -217,8 +298,9 @@ def predict():
         if source.startswith("data:image"):
             header, encoded = source.split(",", 1)
             img_bytes = base64.b64decode(encoded)
-            from PIL import Image
+            from PIL import Image, ImageOps
             img = Image.open(io.BytesIO(img_bytes))
+            img = ImageOps.exif_transpose(img)  # 修正 EXIF 旋转
             results = model(img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
         else:
             results = model(source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
@@ -251,18 +333,20 @@ def predict():
 
     out = results_to_json(results, model_name, task)
     out["terminal"] = terminal_output[-4000:] if terminal_output else ""
-    # 用 YOLO 自带的 plot() 生成标注图（像素级精准）
+    # 在原图上绘制科技风检测框（保持原始宽高比，不变形）
     if results and len(results) > 0:
         try:
-            annotated = results[0].plot(conf=True, labels=True, boxes=True, line_width=3, font_size=14)
-            # plot() 返回 numpy BGR array → 转 RGB → PIL → base64
-            import numpy as np
-            from PIL import Image
-            if isinstance(annotated, np.ndarray):
-                annotated = Image.fromarray(annotated[..., ::-1])  # BGR to RGB
+            # 重新加载原始图像
+            if source.startswith("data:image"):
+                header, encoded = source.split(",", 1)
+                img_bytes = base64.b64decode(encoded)
+                orig_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
+            else:
+                orig_img = ImageOps.exif_transpose(Image.open(source)).convert("RGB")
+            annotated = draw_tech_boxes(orig_img, results[0])
             out["annotated_b64"] = pil_to_b64(annotated)
         except Exception as e:
-            print(f"[WARN] plot failed: {e}")
+            print(f"[WARN] annotation failed: {e}")
     return jsonify(out)
 
 # ── 训练 ────────────────────────────────────────────
