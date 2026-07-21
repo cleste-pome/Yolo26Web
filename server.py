@@ -70,6 +70,12 @@ def results_to_json(results, model_key="", task="detect"):
                     "class_name": names.get(cls_id, f"cls_{cls_id}"),
                     "confidence": round(conf, 4),
                 }
+                # 追踪 ID
+                if task == "track" and boxes.id is not None:
+                    try:
+                        d["track_id"] = int(boxes.id[i])
+                    except:
+                        pass
                 # 分割多边形
                 if task == "segment" and r.masks is not None:
                     try:
@@ -160,14 +166,17 @@ def draw_tech_boxes(pil_img, result):
         pad = max(2, int(3 * box_fs / 14))
         lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
 
+        # 追踪 ID（可选）
+        tid = int(boxes.id[i]) if boxes.id is not None and i < len(boxes.id) else None
+        tid_str = f"#{tid}" if tid else ""
         # 先试横排
-        label_h = f" {name} {conf:.0%} "
+        label_h = f" {name} {conf:.0%} {tid_str}"
         tb_h = draw.textbbox((0, 0), label_h, font=box_font)
         tw_h, th_h = tb_h[2] - tb_h[0], tb_h[3] - tb_h[1]
         lw_h, lh_h = tw_h + pad * 2, th_h + pad * 2
 
         # 再试竖排（类别 + 概率两行）
-        label_v_name = f" {name} "
+        label_v_name = f" {name}{' '+tid_str if tid else ''} "
         label_v_conf = f" {conf:.0%} "
         tb_n = draw.textbbox((0, 0), label_v_name, font=box_font)
         tb_c = draw.textbbox((0, 0), label_v_conf, font=box_font)
@@ -254,15 +263,16 @@ def predict():
         from ultralytics.utils import ASSETS
         source = str(Path(ASSETS) / "bus.jpg")
 
-    # 处理不同来源
+    # 处理不同来源（追踪任务用 model.track）
     from PIL import Image, ImageOps
+    do_predict = lambda m, src, **kw: m.track(src, persist=True, **kw) if task == 'track' else m(src, **kw)
     try:
         if source.startswith("data:image"):
             header, encoded = source.split(",", 1)
             img_bytes = base64.b64decode(encoded)
             img = Image.open(io.BytesIO(img_bytes))
             img = ImageOps.exif_transpose(img)  # 修正 EXIF 旋转
-            results = model(img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+            results = do_predict(model, img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
         else:
             # 如果是文件名/路径，尝试用 PIL 打开，否则传给 YOLO 自动解析
             import re
@@ -270,11 +280,11 @@ def predict():
                 src_path = Path(source)
                 if src_path.exists():
                     img = ImageOps.exif_transpose(Image.open(src_path))
-                    results = model(img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+                    results = do_predict(model, img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
                 else:
-                    results = model(source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+                    results = do_predict(model, source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
             else:
-                results = model(source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+                results = do_predict(model, source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
     except Exception as e:
         return jsonify({"error": f"推理失败: {e}"}), 500
 

@@ -519,7 +519,8 @@ function stuStartLoop(){
       if(showLabel||showConf){
         let boxFs=Math.max(8,Math.min(fs,Math.floor(Math.min(bw,bh)/7.5)));
         ctx.font=`500 ${boxFs}px -apple-system, "Helvetica Neue", sans-serif`;
-        let nameTxt=showLabel?' '+(COCO_ZH[d.class_id]||'')+' ':'';
+        let tid=(d.track_id!==null&&d.track_id!==undefined)?' #'+d.track_id:'';
+        let nameTxt=showLabel?' '+(COCO_ZH[d.class_id]||'')+tid+' ':'';
         let confTxt=showConf?' '+(d.confidence*100).toFixed(0)+'% ':'';
         let hzTxt=nameTxt+confTxt;
         let hm=ctx.measureText(hzTxt),hw=hm.width+4,hh=boxFs+4;
