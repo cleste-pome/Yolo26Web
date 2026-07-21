@@ -372,7 +372,12 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
     <p>YOLO26 的预训练权重就是「纯净态」——不可变的基准状态。在此基础上进行训练得到「训练态」，导出为部署格式得到「导出态」。完整谱系可追溯，SHA256 校验保证完整性。</p><br>
     <p><b>版本信息：</b>ultralytics v8.4.102 · PyTorch 2.13.0 · Python 3.13 · Apple MPS 加速</p>
   </div></div>
-</div></div>
+  <div class="section-label" style="margin-top:24px">效果预览</div><h2 class="section-title">YOLO26 Large 模型实测</h2>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:16px">
+    <div style="flex:1;min-width:260px;max-width:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--bg2)"><img src="examples/detect.jpg" style="width:100%;display:block" alt="目标检测"><div style="padding:8px 12px;font-size:.78rem;font-weight:600">🔍 目标检测 — 5人+1巴士</div></div>
+    <div style="flex:1;min-width:260px;max-width:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--bg2)"><img src="examples/segment.jpg" style="width:100%;display:block" alt="实例分割"><div style="padding:8px 12px;font-size:.78rem;font-weight:600">🎯 实例分割 — 像素级掩码</div></div>
+    <div style="flex:1;min-width:260px;max-width:400px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--bg2)"><img src="examples/pose.jpg" style="width:100%;display:block" alt="姿态估计"><div style="padding:8px 12px;font-size:.78rem;font-weight:600">🧍 姿态估计 — 17关键点+骨架</div></div>
+  </div></div>
 
 </div><!-- /main -->
 
