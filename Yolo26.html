@@ -841,8 +841,8 @@ async function xExec(){
 
 
 // ═══════════════════════ 检测历史页面 ═══════════════════════
-async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;const r=await api("DELETE","/api/history/delete/"+id);if(r&&r.deleted){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
-async function clearAllHistory(){if(!confirm("确定清空全部检测历史？此操作不可恢复。"))return;const list=await api("GET","/api/history/list");if(list&&Array.isArray(list)){for(const h of list){await api("DELETE","/api/history/delete/"+h.id)}toast("已清空 "+list.length+" 条记录","ok");loadHistPage()}}
+async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;const r=await api("DELETE","/api/history/delete/"+id);if(r&&r.status==='deleted'){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
+async function clearAllHistory(){if(!confirm("确定清空全部检测历史？此操作不可恢复。"))return;const r=await api("DELETE","/api/history/clear-all");if(r&&r.status==='cleared'){toast("已清空 "+r.count+" 条记录","ok");loadHistPage()}else{toast("清空失败","err")}}
 
 async function loadHistPage(){
   var grid=document.getElementById("histGrid");
@@ -865,8 +865,6 @@ function viewHistDetail(id){
     img.style.cssText="max-width:90vw;max-height:90vh;border-radius:8px";overlay.appendChild(img);document.body.appendChild(overlay);
   };img.src=API+"/api/history/image/"+id;
 }
-async function deleteHistEntry(id){if(!confirm("删除这条检测记录？"))return;var r=await api("DELETE","/api/history/delete/"+id);if(r&&r.deleted){toast("已删除","ok");loadHistPage()}else{toast("删除失败","err")}}
-async function clearAllHistory(){if(!confirm("确定清空全部检测历史？"))return;var list=await api("GET","/api/history/list");if(list&&Array.isArray(list)){for(var i=0;i<list.length;i++){await api("DELETE","/api/history/delete/"+list[i].id)}toast("已清空 "+list.length+" 条记录","ok");loadHistPage()}}
 </script>
 </body>
 </html>

@@ -584,6 +584,18 @@ def delete_history(entry_id):
             p.unlink()
     return jsonify({"status": "deleted"})
 
+@app.route("/api/history/clear-all", methods=["DELETE"])
+def clear_all_history():
+    """清空全部检测历史"""
+    count = 0
+    for p in list(HISTORY_DIR.glob("*.jpg")) + list(HISTORY_DIR.glob("*.json")):
+        try:
+            p.unlink()
+            count += 1
+        except Exception:
+            pass
+    return jsonify({"status": "cleared", "count": count})
+
 @app.route("/<path:filename>")
 def serve_static(filename):
     """提供静态文件：图片、CSS 等"""
