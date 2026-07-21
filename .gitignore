@@ -7,14 +7,5 @@
 # Claude AI (聊天记录 / 记忆 / 设置)
 .claude/
 
-# 运行时数据库
-*.db
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-venv/
-
 # 模型权重（过大，不上传git）
 weights/*.pt
