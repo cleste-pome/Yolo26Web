@@ -202,7 +202,7 @@ def draw_tech_boxes(pil_img, result):
     ]
 
     try:
-        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 14)
+        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
     except Exception:
         try:
             font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 14)
@@ -226,7 +226,7 @@ def draw_tech_boxes(pil_img, result):
         r = 10
 
         # 圆角细线边框
-        draw.rounded_rectangle([x1, y1, x2, y2], radius=r, outline=color, width=2)
+        draw.rounded_rectangle([x1, y1, x2, y2], radius=r, outline=color, width=3)
 
         # 标签贴在框内顶部，挨着上边框
         label = f" {name} {conf:.0%} "
