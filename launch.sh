@@ -70,7 +70,7 @@ done
 
 echo ""
 echo "🌐 打开前端仪表盘..."
-open Yolo26.html
+open http://localhost:8050
 
 echo ""
 echo "========================================"

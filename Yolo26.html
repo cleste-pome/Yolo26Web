@@ -160,6 +160,9 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 /* ── TOASTS ── */
 .toasts{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:6px}
 .toast{padding:8px 16px;border-radius:8px;font-size:.74rem;font-weight:500;animation:si .3s;max-width:300px;box-shadow:var(--shadow-lg)}.toast.ok{background:#dcfce7;color:#166534}.toast.err{background:#fee2e2;color:#991b1b}.toast.info{background:var(--brand-l);color:var(--brand)}@keyframes si{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+/* ── 后端离线全屏提示 ── */
+.conn-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;font-family:var(--font)}.conn-overlay.hidden{display:none}
+.conn-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px;max-width:480px;text-align:center;box-shadow:var(--shadow-lg)}.conn-card .icon{font-size:3rem;margin-bottom:16px}.conn-card h2{font-size:1.2rem;margin-bottom:8px;color:var(--fg)}.conn-card p{font-size:.82rem;color:var(--t2);line-height:1.6;margin-bottom:20px}.conn-card code{background:var(--bg);padding:4px 10px;border-radius:6px;font-family:var(--mono);font-size:.78rem;display:inline-block;margin:4px 0}.conn-card .btn{font-size:.85rem;padding:10px 24px}
 
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
@@ -169,6 +172,16 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 </style>
 </head>
 <body data-version="20260720-fixed">
+<!-- 后端离线遮罩 -->
+<div class="conn-overlay" id="connOverlay">
+  <div class="conn-card">
+    <div class="icon">🔌</div>
+    <h2>后端未连接</h2>
+    <p>YOLO26 需要本地后端服务才能运行。<br>请在终端执行以下命令启动：</p>
+    <code>./launch.sh</code>
+    <p style="margin-top:12px;font-size:.74rem;color:var(--t3)">或手动启动：<code>python server.py --port 8050</code><br>启动后页面将自动连接</p>
+  </div>
+</div>
 <div class="toasts" id="toasts"></div>
 
 <!-- ═══ SIDEBAR ═══ -->
@@ -403,7 +416,7 @@ document.addEventListener('DOMContentLoaded',()=>{try{
 // ── THEME ──
 function toggleTheme(){const d=document.documentElement;const themes=['light','warm','dark'];const labels=['☀️ 浅色','🍂 暖色','🌙 深色'];const cur=d.getAttribute('data-theme')||'light';const idx=themes.indexOf(cur);const next=themes[(idx+1)%3];d.setAttribute('data-theme',next);document.getElementById('themeLabel').textContent=labels[(idx+1)%3];localStorage.setItem('theme',next)}
 function toast(m,t='info'){const c=document.getElementById('toasts'),d=document.createElement('div');d.className='toast '+t;d.textContent=m;c.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300)},2400)}
-async function checkBackend(){try{const r=await fetch(API+'/api/health');backendOk=(await r.json()).status==='ok'}catch(e){backendOk=false}document.getElementById('navStatus').innerHTML=backendOk?'<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>':'<span style="color:var(--red)">● 离线</span>'}setInterval(checkBackend,12000);
+async function checkBackend(){try{const r=await fetch(API+'/api/health',{signal:AbortSignal.timeout(5000)});backendOk=(await r.json()).status==='ok';document.getElementById('connOverlay').classList.add('hidden')}catch(e){backendOk=false;document.getElementById('connOverlay').classList.remove('hidden')}document.getElementById('navStatus').innerHTML=backendOk?'<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>':'<span style="color:var(--red)">● 离线</span>'}checkBackend();setInterval(checkBackend,12000);
 async function detectDevice(){try{const r=await fetch(API+'/api/system/info');if(r.ok){const d=await r.json();systemDevice=d.device||'cpu';const sel=document.getElementById('stuDeviceSel');if(sel){if(systemDevice==='mps'){sel.value='mps'}else if(systemDevice==='cuda'){sel.value='0'}else{sel.value='cpu'}};document.getElementById('navStatus').innerHTML='<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>'}}catch(e){}}
 async function api(method,path,body){try{const o={method,headers:{'Content-Type':'application/json'}};if(body)o.body=JSON.stringify(body);const r=await fetch(API+path,o);if(!r.ok){const e=await r.json().catch(()=>({}));return{error:e.error||r.statusText}}return await r.json()}catch(e){return{error:'连接失败'}}}
 
