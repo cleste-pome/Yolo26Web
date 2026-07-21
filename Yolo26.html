@@ -459,7 +459,7 @@ function stuPopulateModels(){
   stuCheckModelReady();
 }
 async function stuCheckModelReady(){const m=document.getElementById("stuModelSel").value;if(!backendOk)return;try{const r=await api("GET","/api/models/available");if(r&&Array.isArray(r)){const f=r.find(x=>x.name===m);document.getElementById("stuModelWarn").textContent=f&&f.downloaded?"":"（未下载）"}}catch(e){}}
-function onStuModelChange(){stuCheckModelReady();if(stuImgMode&&stuCachedImg){stuTaskCache={};stuRedetect()}if(stuWebcamOn){stuLiveDets=[];stuLastPred=0}}
+function onStuModelChange(){stuCheckModelReady();if(stuWebcamOn){stuLiveDets=[];stuLastPred=0}}
 
 // ── Webcam ──
 async function stuToggleWebcam(){
@@ -613,6 +613,7 @@ function stuClearImg(){
 
 async function stuRunImgPredict(b64){
   const params=stuGetPredictParams();const r=await api("POST","/api/predict",{...params,source:b64});
+  stuPredicting=false;
   if(!r||r.error){toast("推理失败: "+(r?.error||"?"),"err");return}
   if(r.annotated_b64){const ann=new Image();ann.onload=()=>{drawImgContain(document.getElementById("studioCanvas"),ann)};ann.src="data:image/jpeg;base64,"+r.annotated_b64}
   stuTaskCache[stuTask]={dets:r.detections,annot:r.annotated_b64,metrics:r.speed_ms,model:params.model};
@@ -626,9 +627,11 @@ function stuRestoreCache(task){
   stuUpdatePanel({detections:r.dets,speed_ms:r.metrics},r.model);
 }
 
+let stuPredicting=false;
 async function stuRedetect(){
+  if(stuPredicting){toast("推理进行中...","info");return}
   if(!stuImgMode||!stuCachedImg){toast("请先上传图片","err");return}
-  stuTaskCache={};
+  stuPredicting=true;stuTaskCache={};
   const c=document.getElementById("studioCanvas"),ctx=c.getContext("2d");
   ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#000";ctx.fillRect(0,0,c.width,c.height);
   const sc=Math.min(c.width/stuImgEl.width,c.height/stuImgEl.height);
