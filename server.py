@@ -20,177 +20,84 @@ TRAIN_JOBS = {}
 job_lock = threading.Lock()
 
 MODEL_VARIANTS = {
-    "yolo26n": "YOLO26 Nano (2.4M params, 40.9 mAP)",
-    "yolo26s": "YOLO26 Small (9.5M, 48.6 mAP)",
-    "yolo26m": "YOLO26 Medium (20.4M, 53.1 mAP)",
-    "yolo26l": "YOLO26 Large (24.8M, 55.0 mAP)",
-    "yolo26x": "YOLO26 X-Large (55.7M, 57.5 mAP)",
+    "n": "Nano", "s": "Small", "m": "Medium", "l": "Large", "x": "X-Large"
 }
-TASK_VARIANTS = {
-    "detect": "yolo26n.pt yolo26s.pt yolo26m.pt yolo26l.pt yolo26x.pt",
-    "segment": "yolo26n-seg.pt yolo26s-seg.pt yolo26m-seg.pt yolo26l-seg.pt yolo26x-seg.pt",
-    "pose": "yolo26n-pose.pt yolo26s-pose.pt yolo26m-pose.pt yolo26l-pose.pt yolo26x-pose.pt",
-    "classify": "yolo26n-cls.pt yolo26s-cls.pt yolo26m-cls.pt yolo26l-cls.pt yolo26x-cls.pt",
-    "obb": "yolo26n-obb.pt yolo26s-obb.pt yolo26m-obb.pt yolo26l-obb.pt yolo26x-obb.pt",
-}
+TASK_SUFFIX = {"segment": "-seg", "pose": "-pose", "classify": "-cls", "obb": "-obb", "track": ""}
 
-def now_iso():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def model_path(name):
+    p = Path("weights") / name
+    return str(p.resolve()) if p.exists() else name
 
-# ── 模型加载 ────────────────────────────────────────
-def resolve_model_path(model_name: str) -> str:
-    """在 weights/ 和当前目录中查找模型文件"""
-    if not model_name or not model_name.strip() or not model_name.endswith('.pt'):
-        return "yolo26n.pt"  # 回退到默认模型
-    # 如果已包含路径前缀，直接用
-    if "/" in model_name or "\\" in model_name:
-        return model_name
-    # 优先查找 weights/ 目录
-    weights_path = Path("weights") / model_name
-    if weights_path.exists():
-        return str(weights_path)
-    # 回退到当前目录
-    if Path(model_name).exists():
-        return model_name
-    # 都不存在，让 YOLO 自动下载到 weights/
-    return str(weights_path)
+def get_model(name, task=None):
+    import ultralytics
+    key = f"{name}_{task}" if task else name
+    if key in MODEL_CACHE:
+        return MODEL_CACHE[key]
+    m = ultralytics.YOLO(model_path(name), task=task)
+    MODEL_CACHE[key] = m
+    return m
 
-def get_model(model_name: str, task: str = None):
-    """加载 YOLO 模型（带缓存）"""
-    from ultralytics import YOLO
-    actual_path = resolve_model_path(model_name)
-    cache_key = f"{model_name}_{task or 'auto'}"
-    if cache_key not in MODEL_CACHE:
-        try:
-            MODEL_CACHE[cache_key] = YOLO(actual_path, task=task, verbose=False)
-            print(f"[模型] 已加载: {model_name} → {actual_path} (task={task or 'auto'})")
-        except Exception as e:
-            raise RuntimeError(f"模型加载失败 {model_name}: {e}")
-    return MODEL_CACHE[cache_key]
+# ── 辅助函数 ──────────────────────────────────────
 
-# ── 辅助 ────────────────────────────────────────────
-def pil_to_b64(pil_img, fmt="JPEG"):
+def pil_to_b64(pil_img, fmt="JPEG", quality=85):
     """PIL Image → base64"""
     buf = io.BytesIO()
-    pil_img.save(buf, format=fmt)
+    pil_img.save(buf, format=fmt, quality=quality)
     return base64.b64encode(buf.getvalue()).decode()
 
 def results_to_json(results, model_key="", task="detect"):
     """将 YOLO Results 转为 JSON"""
     out = {"detections": [], "task": task, "model": model_key, "speed_ms": None}
-
     if results and len(results) > 0:
         r = results[0]
-        # 速度
-        if r.speed:
-            speeds = r.speed
-            out["speed_ms"] = {
-                "preprocess": round(speeds.get("preprocess", 0), 2),
-                "inference": round(speeds.get("inference", 0), 2),
-                "postprocess": round(speeds.get("postprocess", 0), 2),
-            }
-
-        # 分类任务：使用 probs
-        if task == "classify" and r.probs is not None:
-            probs = r.probs
-            top5_idx = probs.top5 if hasattr(probs, 'top5') else []
-            top5_conf = probs.top5conf if hasattr(probs, 'top5conf') else []
-            for i in range(len(top5_idx)):
-                cls_id = int(top5_idx[i])
-                conf = float(top5_conf[i]) if i < len(top5_conf) else 0
-                name = r.names.get(cls_id, f"class_{cls_id}") if r.names else f"cls_{cls_id}"
-                out["detections"].append({
-                    "class_id": cls_id, "class_name": str(name),
-                    "confidence": round(conf, 4),
-                    "bbox": [0, 0, 0, 0],
-                })
-
+        sp = r.speed
+        out["speed_ms"] = {
+            "preprocess": round(sp.get("preprocess", 0), 1) if sp else 0,
+            "inference": round(sp.get("inference", 0), 1) if sp else 0,
+            "postprocess": round(sp.get("postprocess", 0), 1) if sp else 0,
+        }
+        names = r.names or {}
         # 检测/分割/姿态/OBB：使用 boxes
-        elif r.boxes is not None:
+        if r.boxes is not None:
             boxes = r.boxes
             for i in range(len(boxes)):
                 cls_id = int(boxes.cls[i]) if boxes.cls is not None else 0
                 conf = float(boxes.conf[i]) if boxes.conf is not None else 0
                 xyxy = boxes.xyxy[i].tolist() if boxes.xyxy is not None else [0,0,0,0]
-                name = r.names.get(cls_id, f"class_{cls_id}") if r.names else f"cls_{cls_id}"
-                out["detections"].append({
-                    "class_id": cls_id, "class_name": str(name),
-                    "confidence": round(conf, 4),
+                d = {
                     "bbox": [round(x, 1) for x in xyxy],
+                    "class_id": cls_id,
+                    "class_name": names.get(cls_id, f"cls_{cls_id}"),
+                    "confidence": round(conf, 4),
+                }
+                # 分割多边形
+                if task == "segment" and r.masks is not None:
+                    try:
+                        poly = r.masks.xy[i].tolist()
+                        d["segmentation_polygon"] = [[round(p, 1) for p in pt] for pt in poly]
+                    except:
+                        pass
+                # 关键点
+                if task == "pose" and r.keypoints is not None:
+                    try:
+                        kpts = r.keypoints
+                        d["keypoints"] = kpts.xy[i].tolist() if kpts.xy is not None else []
+                    except:
+                        pass
+                out["detections"].append(d)
+        elif r.probs is not None:
+            # 分类
+            for i, p in enumerate(r.probs.top5):
+                out["detections"].append({
+                    "class_id": r.probs.top5[i],
+                    "class_name": names.get(r.probs.top5[i], f"cls_{r.probs.top5[i]}"),
+                    "confidence": round(float(r.probs.top5conf[i]), 4),
                 })
-
-        # 关键点 (pose)
-        if r.keypoints is not None:
-            kpts = r.keypoints
-            if kpts.xy is not None and len(kpts.xy) > 0:
-                for i in range(min(len(kpts.xy), len(out["detections"]))):
-                    out["detections"][i]["keypoints"] = kpts.xy[i].tolist() if hasattr(kpts.xy[i], 'tolist') else kpts.xy[i]
-                    if kpts.conf is not None and i < len(kpts.conf):
-                        out["detections"][i]["kp_conf"] = kpts.conf[i].tolist() if hasattr(kpts.conf[i], 'tolist') else kpts.conf[i]
-
-        # 掩码 (segment)
-        if r.masks is not None:
-            masks = r.masks
-            if masks.xy is not None and len(masks.xy) > 0:
-                for i in range(min(len(masks.xy), len(out["detections"]))):
-                    poly = masks.xy[i].tolist() if hasattr(masks.xy[i], 'tolist') else masks.xy[i]
-                    out["detections"][i]["segmentation_polygon"] = [[round(p, 1) for p in pt] for pt in poly]
-
-        # 标注图像
-        try:
-            annotated = r.plot(conf=True, labels=True, boxes=True)
-            out["annotated_b64"] = pil_to_b64(annotated)
-        except Exception:
-            pass
-
     return out
-
-# ══════════════════════════════════════════════════════
-#  API 路由
-# ══════════════════════════════════════════════════════
-
-@app.route("/api/health")
-def health():
-    return jsonify({"status": "ok", "timestamp": now_iso(), "cached_models": list(MODEL_CACHE.keys())})
-
-# ── 模型下载 / 列表 ─────────────────────────────────
-@app.route("/api/models/available")
-def available_models():
-    """列出所有 YOLO26 变体及下载状态"""
-    models = []
-    for task, variants_str in TASK_VARIANTS.items():
-        for v in variants_str.split():
-            # Check weights/ first, then current dir
-            path = Path("weights") / v
-            if not path.exists():
-                path = Path(v)
-            exists = path.exists()
-            size_mb = round(path.stat().st_size / 1e6, 2) if exists else None
-            models.append({"name": v, "task": task, "downloaded": exists, "size_mb": size_mb, "path": str(path)})
-    return jsonify(models)
-
-@app.route("/api/models/download", methods=["POST"])
-def download_model():
-    """下载模型权重（YOLO 自动从 GitHub Releases 下载到 weights/）"""
-    data = request.get_json() or {}
-    model_name = data.get("model", "yolo26n.pt")
-    task = data.get("task")
-    try:
-        actual_path = resolve_model_path(model_name)
-        get_model(model_name, task=task)
-        path = Path(actual_path)
-        size_mb = round(path.stat().st_size / 1e6, 2) if path.exists() else None
-        return jsonify({"success": True, "model": model_name, "size_mb": size_mb, "path": str(path), "message": f"模型 {model_name} 已就绪"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/models/cached")
-def cached_models():
-    return jsonify(list(MODEL_CACHE.keys()))
 
 # ── Apple 风格标注 ──────────────────────────────
 def draw_tech_boxes(pil_img, result):
-    """圆角细线框 + 标签贴在框内顶部"""
+    """圆角细线框 + 标签贴在框内顶部，按图片尺寸等比缩放"""
     from PIL import Image, ImageDraw, ImageFont
 
     img = pil_img.copy().convert("RGB")
@@ -201,11 +108,16 @@ def draw_tech_boxes(pil_img, result):
         (175, 82, 222), (90, 200, 250), (255, 204, 0), (255, 45, 85),
     ]
 
+    # 按图片尺寸等比缩放，确保大图和小图的标注观感一致
+    s = max(w, h) / 640.0
+    line_w = max(3, int(5 * s))
+    font_s = max(14, int(18 * s))
+    box_r = max(6, int(10 * s))
     try:
-        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
+        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_s)
     except Exception:
         try:
-            font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 14)
+            font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", font_s)
         except Exception:
             font = ImageFont.load_default()
 
@@ -223,22 +135,22 @@ def draw_tech_boxes(pil_img, result):
         color = APPLE[i % len(APPLE)]
         x1, y1, x2, y2 = [int(v) for v in box]
         bw, bh = x2 - x1, y2 - y1
-        r = 10
 
-        # 圆角细线边框
-        draw.rounded_rectangle([x1, y1, x2, y2], radius=r, outline=color, width=3)
+        # 圆角边框
+        draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
-        # 标签贴在框内顶部，挨着上边框
+        # 标签贴在框内顶部
         label = f" {name} {conf:.0%} "
         tb = draw.textbbox((0, 0), label, font=font)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
-        lw, lh = tw + 8, th + 6
-        lx, ly = x1 + 2, y1 + 1  # 紧贴上边框内侧
+        pad = max(4, int(8 * s))
+        lw_lb, lh_lb = tw + pad * 2, th + pad
+        lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
 
-        if bw > lw + 8 and bh > lh + 4:
-            draw.rounded_rectangle([lx, ly, lx + lw, ly + lh], radius=5,
-                                   fill=(28, 28, 30))
-            draw.text((lx + 4, ly + 3), label, fill=(255, 255, 255), font=font)
+        if bw > lw_lb + pad * 2 and bh > lh_lb + pad:
+            draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
+                                   radius=max(3, int(5 * s)), fill=(28, 28, 30))
+            draw.text((lx + pad, ly + max(1, int(2 * s))), label, fill=(255, 255, 255), font=font)
 
     return img
 
@@ -307,7 +219,7 @@ def predict():
 
     out = results_to_json(results, model_name, task)
     out["terminal"] = terminal_output[-4000:] if terminal_output else ""
-    # 在原图上绘制科技风检测框（保持原始宽高比，不变形）
+    # 在原图上绘制检测框（保持原始宽高比，不变形）
     if results and len(results) > 0:
         try:
             # 重新加载原始图像
@@ -317,8 +229,13 @@ def predict():
                 orig_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
             else:
                 orig_img = ImageOps.exif_transpose(Image.open(source)).convert("RGB")
+            # 缩放到最大 1920px（保证文字清晰、传输快）
+            ow, oh = orig_img.size
+            if max(ow, oh) > 1920:
+                sc = 1920 / max(ow, oh)
+                orig_img = orig_img.resize((int(ow * sc), int(oh * sc)), Image.LANCZOS)
             annotated = draw_tech_boxes(orig_img, results[0])
-            out["annotated_b64"] = pil_to_b64(annotated)
+            out["annotated_b64"] = pil_to_b64(annotated, quality=92)
         except Exception as e:
             import traceback
             print(f"[WARN] annotation failed: {e}")
@@ -330,99 +247,67 @@ def predict():
 def start_training():
     """启动训练任务"""
     data = request.get_json() or {}
-    model_name = data.get("model", "yolo26n.pt")
-    dataset = data.get("data", "coco8.yaml")
-    epochs = int(data.get("epochs", 100))
-    imgsz = int(data.get("imgsz", 640))
-    device = data.get("device", "mps")  # MacBook MPS 加速（Intel Mac 自动回退 CPU）
-    task = data.get("task", "detect")
-    batch = int(data.get("batch", 16))
-    name = data.get("name", f"train_{int(time.time())}")
+    job_id = uuid.uuid4().hex[:12]
 
-    job_id = str(uuid.uuid4())[:8]
     with job_lock:
-        TRAIN_JOBS[job_id] = {
-            "id": job_id, "model": model_name, "status": "starting",
-            "epoch": 0, "epochs": epochs, "progress": 0.0,
-            "metrics": {}, "log": [], "started_at": now_iso(), "error": None,
-        }
+        TRAIN_JOBS[job_id] = {"status": "running", "model": data.get("model", "yolo26n.pt")}
 
-    def train_thread():
-        from ultralytics import YOLO
+    def _train():
         try:
+            model = get_model(data["model"])
+            model.train(**{k: v for k, v in data.items() if k != "model"})
             with job_lock:
-                TRAIN_JOBS[job_id]["status"] = "running"
-            model = YOLO(model_name, verbose=False)
-            # 训练（verbose=True 让日志输出到控制台，我们捕获难，用文件监控）
-            model.train(
-                data=dataset, epochs=epochs, imgsz=imgsz, device=device,
-                task=task, batch=batch, name=name, exist_ok=True,
-                verbose=False,
-            )
-            with job_lock:
-                TRAIN_JOBS[job_id]["status"] = "completed"
-                TRAIN_JOBS[job_id]["progress"] = 100.0
-                TRAIN_JOBS[job_id]["epoch"] = epochs
+                TRAIN_JOBS[job_id]["status"] = "finished"
         except Exception as e:
             with job_lock:
-                TRAIN_JOBS[job_id]["status"] = "failed"
-                TRAIN_JOBS[job_id]["error"] = str(e)
-            traceback.print_exc()
+                TRAIN_JOBS[job_id]["status"] = f"error: {e}"
 
-    threading.Thread(target=train_thread, daemon=True).start()
-    return jsonify({"job_id": job_id, "status": "starting"}), 201
+    threading.Thread(target=_train, daemon=True).start()
+    return jsonify({"job_id": job_id})
 
 @app.route("/api/train/status/<job_id>")
 def train_status(job_id):
     with job_lock:
-        job = TRAIN_JOBS.get(job_id)
-    if not job:
-        return jsonify({"error": "任务未找到"}), 404
-    return jsonify(job)
+        return jsonify(TRAIN_JOBS.get(job_id, {"status": "not found"}))
 
-@app.route("/api/train/jobs")
-def train_jobs():
-    with job_lock:
-        return jsonify(list(TRAIN_JOBS.values()))
+# ── 系统信息 ─────────────────────────────────────────
+@app.route("/api/system/info")
+def sys_info():
+    import torch
+    d = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
+    return jsonify({"device": d, "torch_version": torch.__version__})
 
-# ── 导出 ────────────────────────────────────────────
-@app.route("/api/export", methods=["POST"])
-def export_model():
+@app.route("/api/health")
+def health():
+    return jsonify({"status": "ok", "cached_models": list(MODEL_CACHE.keys()),
+                    "timestamp": datetime.now(timezone.utc).isoformat()})
+
+# ── 模型管理 ─────────────────────────────────────────
+@app.route("/api/models/available")
+def available_models():
+    variants = []
+    for sz in ["n", "s", "m", "l", "x"]:
+        variants.append({"name": f"yolo26{sz}.pt", "size": sz, "label": MODEL_VARIANTS[sz], "task": "detect"})
+        variants.append({"name": f"yolo26{sz}-seg.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} Seg", "task": "segment"})
+        variants.append({"name": f"yolo26{sz}-pose.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} Pose", "task": "pose"})
+        variants.append({"name": f"yolo26{sz}-cls.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} Cls", "task": "classify"})
+        variants.append({"name": f"yolo26{sz}-obb.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} OBB", "task": "obb"})
+    return jsonify(variants)
+
+@app.route("/api/models/download", methods=["POST"])
+def download_model():
     data = request.get_json() or {}
-    model_name = data.get("model", "yolo26n.pt")
-    fmt = data.get("format", "onnx")
-    try:
-        model = get_model(model_name)
-        export_path = model.export(format=fmt, verbose=False)
-        return jsonify({"success": True, "format": fmt, "output": str(export_path)})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    name = data.get("model", "yolo26n.pt")
+    p = Path("weights") / name
+    if p.exists():
+        return jsonify({"status": "cached", "model": name})
+    # 触发下载
+    model = get_model(name)
+    return jsonify({"status": "downloaded", "model": name})
 
-# ── CLI 命令执行 ──────────────────────────────────────
-@app.route("/api/cli", methods=["POST"])
-def run_cli():
-    """在终端执行 yolo 命令并返回输出"""
-    data = request.get_json() or {}
-    command = data.get("command", "").strip()
-    if not command:
-        return jsonify({"error": "需要 command 参数"}), 400
-
-    # 安全限制：只允许 yolo 相关命令
-    if not command.startswith(("predict","train","val","export","track","detect","segment","pose","classify","obb","mode=")):
-        return jsonify({"error": "请使用 yolo 子命令: predict, train, val, export, track"}), 400
-
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["yolo"] + command.split(),
-            capture_output=True, text=True, timeout=120, cwd=str(Path.cwd())
-        )
-        output = (result.stdout + result.stderr)[-5000:]
-        return jsonify({"output": output, "success": result.returncode == 0, "model": "yolo26n.pt"})
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": "命令超时（120秒）"}), 408
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.route("/api/models/cached")
+def cached_models():
+    return jsonify(list(MODEL_CACHE.keys()))
 
 # ── 文件上传 ─────────────────────────────────────────
 UPLOAD_DIR = Path("uploads")
@@ -449,136 +334,53 @@ def save_history():
     data = request.get_json() or {}
     b64img = data.get("image", "")
     meta = data.get("meta", {})
-    if not b64img:
-        return jsonify({"error": "需要 image 字段"}), 400
+    eid = str(int(time.time() * 1000))
+    # 解码并保存图片
+    if b64img and b64img.startswith("data:image"):
+        header, encoded = b64img.split(",", 1)
+        img_path = HISTORY_DIR / f"{eid}.jpg"
+        img_path.write_bytes(base64.b64decode(encoded))
+    # 保存 JSON 元数据
+    json_path = HISTORY_DIR / f"{eid}.json"
+    json_path.write_text(json.dumps({**meta, "id": eid}, ensure_ascii=False, indent=2))
+    return jsonify({"id": eid, "status": "saved"})
 
-    entry_id = str(int(time.time() * 1000))
-    img_path = HISTORY_DIR / f"{entry_id}.jpg"
-    meta_path = HISTORY_DIR / f"{entry_id}.json"
-
-    try:
-        # 保存标注图
-        if b64img.startswith("data:image"):
-            header, encoded = b64img.split(",", 1)
-            with open(img_path, "wb") as f:
-                f.write(base64.b64decode(encoded))
-        # 保存元数据
-        with open(meta_path, "w") as f:
-            json.dump(meta, f, ensure_ascii=False)
-        return jsonify({"id": entry_id, "success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/history/list", methods=["GET"])
+@app.route("/api/history/list")
 def list_history():
-    """列出所有历史检测记录"""
-    entries = []
-    for meta_file in sorted(HISTORY_DIR.glob("*.json"), reverse=True):
+    items = []
+    for jf in sorted(HISTORY_DIR.glob("*.json"), reverse=True):
         try:
-            with open(meta_file) as f:
-                meta = json.load(f)
-            entry_id = meta_file.stem
-            img_file = HISTORY_DIR / f"{entry_id}.jpg"
-            meta["id"] = entry_id
-            meta["has_image"] = img_file.exists()
-            meta["image_url"] = f"/api/history/image/{entry_id}"
-            entries.append(meta)
-        except Exception:
+            data = json.loads(jf.read_text())
+            data["has_image"] = (HISTORY_DIR / f"{data.get('id','')}.jpg").exists()
+            items.append(data)
+        except:
             pass
-    return jsonify(entries[:100])  # 最多100条
+    return jsonify(items[:50])
 
-@app.route("/api/history/image/<entry_id>", methods=["GET"])
+@app.route("/api/history/image/<entry_id>")
 def get_history_image(entry_id):
-    """获取历史检测图片"""
     img_path = HISTORY_DIR / f"{entry_id}.jpg"
     if img_path.exists():
-        from flask import send_file
         return send_file(str(img_path), mimetype="image/jpeg")
-    return jsonify({"error": "图片未找到"}), 404
+    return "not found", 404
 
 @app.route("/api/history/delete/<entry_id>", methods=["DELETE"])
 def delete_history(entry_id):
-    """删除历史记录"""
-    deleted = 0
     for ext in [".jpg", ".json"]:
         p = HISTORY_DIR / f"{entry_id}{ext}"
         if p.exists():
             p.unlink()
-            deleted += 1
-    return jsonify({"deleted": deleted > 0})
+    return jsonify({"status": "deleted"})
 
-# ── 硬件检测 ──────────────────────────────────────────
-@app.route("/api/system/info")
-def system_info():
-    """检测硬件设备，返回推荐的推理设备"""
-    import torch, platform
-    info = {
-        "platform": platform.system(),
-        "machine": platform.machine(),
-        "python": platform.python_version(),
-        "pytorch": torch.__version__,
-    }
-    # 检测最佳设备
-    if torch.cuda.is_available():
-        info["device"] = "cuda"
-        info["device_name"] = torch.cuda.get_device_name(0)
-        info["gpu_count"] = torch.cuda.device_count()
-    elif torch.backends.mps.is_available():
-        info["device"] = "mps"
-        info["device_name"] = "Apple MPS (Metal Performance Shaders)"
-    else:
-        info["device"] = "cpu"
-        info["device_name"] = platform.processor() or "CPU"
-    return jsonify(info)
+@app.route("/<path:filename>")
+def serve_static(filename):
+    """提供静态文件：图片、CSS 等"""
+    from flask import abort
+    path = Path(filename)
+    if not path.exists():
+        abort(404)
+    return send_file(str(path.resolve()))
 
-# ── 模型信息 ─────────────────────────────────────────
-@app.route("/api/models/info")
-def model_info():
-    """返回所有 YOLO26 变体信息"""
-    return jsonify({
-        "variants": {
-            "detect": [
-                {"name": "yolo26n.pt", "size": "nano", "params_m": 2.4, "map": 40.9, "speed_ms": 1.7, "flops_b": 5.4},
-                {"name": "yolo26s.pt", "size": "small", "params_m": 9.5, "map": 48.6, "speed_ms": 2.5, "flops_b": 20.7},
-                {"name": "yolo26m.pt", "size": "medium", "params_m": 20.4, "map": 53.1, "speed_ms": 4.7, "flops_b": 68.2},
-                {"name": "yolo26l.pt", "size": "large", "params_m": 24.8, "map": 55.0, "speed_ms": 6.2, "flops_b": 86.4},
-                {"name": "yolo26x.pt", "size": "xlarge", "params_m": 55.7, "map": 57.5, "speed_ms": 11.8, "flops_b": 193.9},
-            ],
-            "segment": [
-                {"name": "yolo26n-seg.pt", "size": "nano", "params_m": 2.7, "box_map": 39.6, "mask_map": 33.9, "speed_ms": 2.1},
-                {"name": "yolo26s-seg.pt", "size": "small", "params_m": 10.4, "box_map": 47.3, "mask_map": 40.0, "speed_ms": 3.3},
-                {"name": "yolo26m-seg.pt", "size": "medium", "params_m": 23.6, "box_map": 52.5, "mask_map": 44.1, "speed_ms": 6.7},
-                {"name": "yolo26l-seg.pt", "size": "large", "params_m": 28.0, "box_map": 54.4, "mask_map": 45.5, "speed_ms": 8.0},
-                {"name": "yolo26x-seg.pt", "size": "xlarge", "params_m": 62.8, "box_map": 56.5, "mask_map": 47.0, "speed_ms": 16.4},
-            ],
-            "pose": [
-                {"name": "yolo26n-pose.pt", "size": "nano", "params_m": 2.9, "map": 57.2, "speed_ms": 1.8},
-                {"name": "yolo26s-pose.pt", "size": "small", "params_m": 10.4, "map": 63.0, "speed_ms": 2.7},
-                {"name": "yolo26m-pose.pt", "size": "medium", "params_m": 21.5, "map": 68.8, "speed_ms": 5.0},
-                {"name": "yolo26l-pose.pt", "size": "large", "params_m": 25.9, "map": 70.4, "speed_ms": 6.5},
-                {"name": "yolo26x-pose.pt", "size": "xlarge", "params_m": 57.6, "map": 71.6, "speed_ms": 12.2},
-            ],
-            "classify": [
-                {"name": "yolo26n-cls.pt", "size": "nano", "params_m": 2.8, "top1": 71.4, "top5": 90.1, "speed_ms": 1.1},
-                {"name": "yolo26s-cls.pt", "size": "small", "params_m": 6.7, "top1": 76.0, "top5": 92.9, "speed_ms": 1.3},
-                {"name": "yolo26m-cls.pt", "size": "medium", "params_m": 11.6, "top1": 78.1, "top5": 94.2, "speed_ms": 2.0},
-                {"name": "yolo26l-cls.pt", "size": "large", "params_m": 14.1, "top1": 79.0, "top5": 94.6, "speed_ms": 2.8},
-                {"name": "yolo26x-cls.pt", "size": "xlarge", "params_m": 29.6, "top1": 79.9, "top5": 95.0, "speed_ms": 3.8},
-            ],
-            "obb": [
-                {"name": "yolo26n-obb.pt", "size": "nano", "params_m": 2.5, "map": 52.4, "speed_ms": 2.8},
-                {"name": "yolo26s-obb.pt", "size": "small", "params_m": 9.8, "map": 54.8, "speed_ms": 4.9},
-                {"name": "yolo26m-obb.pt", "size": "medium", "params_m": 21.2, "map": 55.3, "speed_ms": 10.2},
-                {"name": "yolo26l-obb.pt", "size": "large", "params_m": 25.6, "map": 56.2, "speed_ms": 13.0},
-                {"name": "yolo26x-obb.pt", "size": "xlarge", "params_m": 57.6, "map": 56.7, "speed_ms": 30.5},
-            ],
-        },
-        "tasks": ["detect", "segment", "pose", "classify", "obb"],
-        "export_formats": ["onnx","tensorrt","coreml","tflite","openvino","torchscript","tfjs","paddle","ncnn","mnn","rknn","qnn","hailo","axelera","ambarella","executorch","imx","saved_model","pb","edgetpu","litert"],
-    })
-
-# ══════════════════════════════════════════════════════
-# ── 前端页面托管（解决摄像头 file:// 权限问题）────────────
 @app.route("/")
 def serve_index():
     """提供前端仪表盘页面（走 http:// 协议，摄像头权限正常）"""
@@ -590,19 +392,6 @@ def serve_index():
                                "Pragma":"no-cache","Expires":"0"})
     return "<h1>Yolo26.html 未找到</h1>", 404
 
-@app.route("/<path:filename>")
-def serve_static(filename):
-    """提供静态文件"""
-    file_path = Path(__file__).parent / filename
-    if file_path.exists() and file_path.is_file():
-        # 根据扩展名设置 MIME
-        ext = file_path.suffix.lower()
-        mime_map = {".html":"text/html",".js":"application/javascript",".css":"text/css",
-                    ".json":"application/json",".png":"image/png",".jpg":"image/jpeg",
-                    ".svg":"image/svg+xml",".ico":"image/x-icon"}
-        from flask import Response
-        return Response(file_path.read_bytes(), mimetype=mime_map.get(ext,"application/octet-stream"))
-    return jsonify({"error":"Not found"}), 404
 
 if __name__ == "__main__":
     import argparse
@@ -615,4 +404,4 @@ if __name__ == "__main__":
     print(f"  📍 打开浏览器访问: http://localhost:{args.port}")
     print(f"  📍 API 地址:        http://localhost:{args.port}/api/health")
     print(f"{'='*60}\n")
-    app.run(host=args.host, port=args.port, debug=False, threaded=True)
+    app.run(host=args.host, port=args.port)
