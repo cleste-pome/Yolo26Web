@@ -283,16 +283,37 @@ def health():
                     "timestamp": datetime.now(timezone.utc).isoformat()})
 
 # ── 模型管理 ─────────────────────────────────────────
+def _model_downloaded(name):
+    """检查模型是否已下载（本地 weights/ 或 ultralytics 缓存）"""
+    if (Path("weights") / name).exists():
+        return True
+    # ultralytics 默认缓存
+    import ultralytics
+    hub_dir = Path(ultralytics.__file__).parent / "hub" / "checkpoints"
+    if (hub_dir / name).exists():
+        return True
+    # 也检查 ~/.cache
+    home_cache = Path.home() / ".cache" / "torch" / "hub" / "ultralytics" / name
+    if home_cache.exists():
+        return True
+    return name in MODEL_CACHE
+
+
 @app.route("/api/models/available")
 def available_models():
     variants = []
     for sz in ["n", "s", "m", "l", "x"]:
-        variants.append({"name": f"yolo26{sz}.pt", "size": sz, "label": MODEL_VARIANTS[sz], "task": "detect"})
-        variants.append({"name": f"yolo26{sz}-seg.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} Seg", "task": "segment"})
-        variants.append({"name": f"yolo26{sz}-pose.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} Pose", "task": "pose"})
-        variants.append({"name": f"yolo26{sz}-cls.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} Cls", "task": "classify"})
-        variants.append({"name": f"yolo26{sz}-obb.pt", "size": sz, "label": f"{MODEL_VARIANTS[sz]} OBB", "task": "obb"})
+        for task, suffix in [("detect", ""), ("segment", "-seg"), ("pose", "-pose"),
+                              ("classify", "-cls"), ("obb", "-obb")]:
+            name = f"yolo26{sz}{suffix}.pt"
+            variants.append({
+                "name": name, "size": sz,
+                "label": MODEL_VARIANTS[sz] if not suffix else f"{MODEL_VARIANTS[sz]} {task.title()}",
+                "task": task,
+                "downloaded": _model_downloaded(name)
+            })
     return jsonify(variants)
+
 
 @app.route("/api/models/download", methods=["POST"])
 def download_model():
@@ -300,10 +321,36 @@ def download_model():
     name = data.get("model", "yolo26n.pt")
     p = Path("weights") / name
     if p.exists():
-        return jsonify({"status": "cached", "model": name})
-    # 触发下载
-    model = get_model(name)
-    return jsonify({"status": "downloaded", "model": name})
+        return jsonify({"success": True, "model": name, "status": "cached",
+                       "size_mb": round(p.stat().st_size / 1024 / 1024, 1)})
+    try:
+        model = get_model(name)
+        # ultralytics 默认下载到 cache，尝试拷贝到 weights/
+        import ultralytics
+        cache_dir = Path(ultralytics.__file__).parent / "hub" / "checkpoints"
+        cache_path = cache_dir / name
+        if cache_path.exists() and not p.exists():
+            import shutil
+            shutil.copy2(str(cache_path), str(p))
+        return jsonify({"success": True, "model": name, "status": "downloaded",
+                       "size_mb": round(p.stat().st_size / 1024 / 1024, 1) if p.exists() else 0})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/models/info")
+def models_info():
+    """返回分组的模型列表，供前端下载网格使用"""
+    variants = {}
+    for sz in ["n", "s", "m", "l", "x"]:
+        for task, suffix in [("detect", ""), ("segment", "-seg"), ("pose", "-pose"),
+                              ("classify", "-cls"), ("obb", "-obb")]:
+            name = f"yolo26{sz}{suffix}.pt"
+            variants.setdefault(task, []).append({
+                "name": name, "size": sz, "task": task,
+                "downloaded": _model_downloaded(name)
+            })
+    return jsonify({"variants": variants})
+
 
 @app.route("/api/models/cached")
 def cached_models():
