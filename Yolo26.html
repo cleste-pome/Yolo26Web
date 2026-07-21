@@ -545,7 +545,13 @@ function stuStartLoop(){
         ctx.beginPath();d.segmentation_polygon.forEach(([px,py],j)=>{const sx=Math.round(dx+(px/pw)*dw),sy=Math.round(dy+(py/ph)*dh);j===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy)});ctx.closePath();
         ctx.fillStyle=co+'18';ctx.fill();ctx.strokeStyle=co;ctx.lineWidth=1.5;ctx.stroke();
       }else if(stuTask==='pose'&&d.keypoints){
-        d.keypoints.forEach(([kx,ky])=>{const px=Math.round(dx+(kx/pw)*dw),py=Math.round(dy+(ky/ph)*dh);ctx.fillStyle=co;ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fill()});
+        const kp=d.keypoints.map(([kx,ky])=>[Math.round(dx+(kx/pw)*dw),Math.round(dy+(ky/ph)*dh)]);
+        // 骨架连线
+        const SKEL=[[0,1],[0,2],[1,3],[2,4],[3,5],[4,6],[5,6],[5,7],[6,8],[7,9],[8,10],[5,11],[6,12],[11,12],[11,13],[12,14],[13,15],[14,16]];
+        ctx.strokeStyle=co+'88';ctx.lineWidth=2;
+        SKEL.forEach(([a,b])=>{if(a<kp.length&&b<kp.length&&kp[a][0]>0&&kp[b][0]>0){ctx.beginPath();ctx.moveTo(kp[a][0],kp[a][1]);ctx.lineTo(kp[b][0],kp[b][1]);ctx.stroke()}});
+        // 关键点
+        kp.forEach(([px,py])=>{if(px>0&&py>0){ctx.fillStyle=co;ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.fill()}});
       }
     });
     document.getElementById("stuMetF").textContent=fpsC.v;

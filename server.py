@@ -195,6 +195,38 @@ def draw_tech_boxes(pil_img, result):
                                        radius=max(2, int(3 * box_fs / 14)), fill=(28, 28, 30))
                 draw.text((lx + pad, ly + pad), label_v_name, fill=(255, 255, 255), font=box_font)
 
+        # ── 分割掩码 ──
+        if hasattr(result, 'masks') and result.masks is not None:
+            try:
+                polys = result.masks.xy
+                if i < len(polys):
+                    pts = [(int(p[0] * scale), int(p[1] * scale)) for p in polys[i]]
+                    if len(pts) > 2:
+                        draw.polygon(pts, fill=color + (25,), outline=color + (60,))
+            except Exception:
+                pass
+
+        # ── 姿态关键点 ──
+        if hasattr(result, 'keypoints') and result.keypoints is not None:
+            try:
+                kpts = result.keypoints.xy
+                if i < len(kpts):
+                    pts = [(int(k[0] * scale), int(k[1] * scale)) for k in kpts[i]]
+                    # COCO 骨架连线
+                    SKEL = [(0,1),(0,2),(1,3),(2,4),(3,5),(4,6),(5,6),(5,7),(6,8),(7,9),(8,10),
+                            (5,11),(6,12),(11,12),(11,13),(12,14),(13,15),(14,16)]
+                    sk_c = tuple(min(255, c + 60) for c in color)
+                    for a, b in SKEL:
+                        if a < len(pts) and b < len(pts) and pts[a][0] > 0 and pts[b][0] > 0:
+                            draw.line([pts[a], pts[b]], fill=sk_c, width=max(1, line_w // 2))
+                    # 关键点圆点
+                    for px, py in pts:
+                        if px > 0 and py > 0:
+                            r_kp = max(2, line_w)
+                            draw.ellipse([px - r_kp, py - r_kp, px + r_kp, py + r_kp], fill=color)
+            except Exception:
+                pass
+
     return img
 
 
