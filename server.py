@@ -191,7 +191,7 @@ def cached_models():
 # ── Apple 液态玻璃标注 ──────────────────────────
 def draw_tech_boxes(pil_img, result):
     """Apple 液态玻璃风格：细线圆角框、标签嵌在框内、渐变层次感"""
-    from PIL import ImageDraw, ImageFont
+    from PIL import Image, ImageDraw, ImageFont
 
     img = pil_img.copy().convert("RGBA")
     w, h = img.size
@@ -295,11 +295,11 @@ def predict():
         source = str(Path(ASSETS) / "bus.jpg")
 
     # 处理不同来源
+    from PIL import Image, ImageOps
     try:
         if source.startswith("data:image"):
             header, encoded = source.split(",", 1)
             img_bytes = base64.b64decode(encoded)
-            from PIL import Image, ImageOps
             img = Image.open(io.BytesIO(img_bytes))
             img = ImageOps.exif_transpose(img)  # 修正 EXIF 旋转
             results = model(img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
@@ -347,7 +347,9 @@ def predict():
             annotated = draw_tech_boxes(orig_img, results[0])
             out["annotated_b64"] = pil_to_b64(annotated)
         except Exception as e:
+            import traceback
             print(f"[WARN] annotation failed: {e}")
+            traceback.print_exc()
     return jsonify(out)
 
 # ── 训练 ────────────────────────────────────────────
