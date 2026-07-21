@@ -275,7 +275,7 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
       <label class="check-row"><input type="checkbox" id="stuShowLabels" checked> 显示类别标签</label>
       <label class="check-row"><input type="checkbox" id="stuShowConf" checked> 显示置信度</label>
       <label class="check-row"><input type="checkbox" id="stuShowBoxes" checked> 显示锚框</label>
-      <div class="ctrl-group"><label>标注线宽 <span id="stuLW" style="font-family:var(--mono);color:var(--brand)">4</span></label><input type="range" id="stuLineW" min="1" max="8" value="4" oninput="document.getElementById('stuLW').textContent=this.value"></div>
+      <div class="ctrl-group"><label>标注线宽 <span id="stuLW" style="font-family:var(--mono);color:var(--brand)">2</span></label><input type="range" id="stuLineW" min="1" max="8" value="2" oninput="document.getElementById('stuLW').textContent=this.value"></div>
       <div class="ctrl-group"><label>文字大小 <span id="stuFS" style="font-family:var(--mono);color:var(--brand)">15</span></label><input type="range" id="stuFontS" min="8" max="22" value="15" oninput="document.getElementById('stuFS').textContent=this.value"></div>
       </div></div>
 
@@ -498,21 +498,23 @@ function stuStartLoop(){
     const sc=Math.min(cw/vw,ch/vh),dw=Math.round(vw*sc),dh=Math.round(vh*sc),dx=Math.round((cw-dw)/2),dy=Math.round((ch-dh)/2);
     ctx.drawImage(v,0,0,vw,vh,dx,dy,dw,dh);
     const pw=stuPredW||vw,ph=stuPredH||vh;
-    const lw=parseInt(document.getElementById('stuLineW')?.value||'4');
+    const lw=parseInt(document.getElementById('stuLineW')?.value||'2');
     const fs=parseInt(document.getElementById('stuFontS')?.value||'15');
     stuLiveDets.forEach((d,i)=>{const[x1,y1,x2,y2]=d.bbox||[0,0,0,0];const bx=Math.round(dx+(x1/pw)*dw),by=Math.round(dy+(y1/ph)*dh),bw=Math.round(((x2-x1)/pw)*dw),bh=Math.round(((y2-y1)/ph)*dh);if(bw<4||bh<4)return;const co=COLORS[i%COLORS.length];
       // ── 圆角细线边框 ──
       ctx.strokeStyle=co;ctx.lineWidth=lw;
       ctx.beginPath();ctx.roundRect(bx+.5,by+.5,bw-1,bh-1,10);ctx.stroke();
-      // ── 标签贴在框内顶部 ──
-      const lb=' '+(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'% ';
+      // ── 标签贴在框内顶部，小框自动缩略 ──
       ctx.font=`500 ${fs}px -apple-system, "Helvetica Neue", sans-serif`;
-      const m=ctx.measureText(lb),tw=m.width+8,th=fs+6;
-      const lx=bx+2,ly=by+1;
-      if(bw>tw+8&&bh>th+4){
-        ctx.fillStyle='rgba(28,28,30,.88)';
-        ctx.beginPath();ctx.roundRect(lx,ly,tw,th,5);ctx.fill();
-        ctx.fillStyle='#fff';ctx.fillText(lb,lx+4,ly+fs+3);
+      const labels=[' '+(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'% ',' '+(COCO_ZH[d.class_id]||'')+' ',' '+(d.confidence*100).toFixed(0)+'% '];
+      for(const lb of labels){
+        const m=ctx.measureText(lb),tw=m.width+8,th=fs+6;
+        if(bw>=tw+4&&bh>=th+4){
+          ctx.fillStyle='rgba(28,28,30,.88)';
+          ctx.beginPath();ctx.roundRect(bx+2,by+1,tw,th,5);ctx.fill();
+          ctx.fillStyle='#fff';ctx.fillText(lb,bx+6,by+fs+3);
+          break;
+        }
       }
       // ── 分割 / 姿态 ──
       if(stuTask==='segment'&&d.segmentation_polygon){

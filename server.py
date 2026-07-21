@@ -120,7 +120,7 @@ def draw_tech_boxes(pil_img, result):
 
     # 按缩放后的尺寸计算线宽/字号
     s = max(nw, nh) / 640.0
-    line_w = max(3, int(5 * s))
+    line_w = max(2, int(3.5 * s))
     font_s = max(14, int(18 * s))
     box_r = max(6, int(10 * s))
     try:
@@ -151,18 +151,19 @@ def draw_tech_boxes(pil_img, result):
         # 圆角边框
         draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
-        # 标签贴在框内顶部
-        label = f" {name} {conf:.0%} "
-        tb = draw.textbbox((0, 0), label, font=font)
-        tw, th = tb[2] - tb[0], tb[3] - tb[1]
-        pad = max(4, int(8 * s))
-        lw_lb, lh_lb = tw + pad * 2, th + pad
-        lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
-
-        if bw > lw_lb + pad * 2 and bh > lh_lb + pad:
-            draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
-                                   radius=max(3, int(5 * s)), fill=(28, 28, 30))
-            draw.text((lx + pad, ly + max(1, int(2 * s))), label, fill=(255, 255, 255), font=font)
+        # 标签贴在框内顶部，小框自动缩短文字
+        labels = [f" {name} {conf:.0%} ", f" {name} ", f" {conf:.0%} "]
+        for label in labels:
+            tb = draw.textbbox((0, 0), label, font=font)
+            tw, th = tb[2] - tb[0], tb[3] - tb[1]
+            pad = max(3, int(6 * s))
+            lw_lb, lh_lb = tw + pad * 2, th + pad
+            lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
+            if bw >= lw_lb + 4 and bh >= lh_lb + 4:
+                draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
+                                       radius=max(2, int(4 * s)), fill=(28, 28, 30))
+                draw.text((lx + pad, ly + max(1, int(2 * s))), label, fill=(255, 255, 255), font=font)
+                break
 
     return img
 
