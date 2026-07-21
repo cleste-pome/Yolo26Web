@@ -1,4 +1,21 @@
 <!DOCTYPE html>
+<!--
+╔══════════════════════════════════════════════════════════════════╗
+║  YOLO26 Web — 基于浏览器的 YOLO 视觉 AI 工作站                  ║
+║                                                                  ║
+║  本文件是完整的前端单页面应用（Single Page Application），         ║
+║  包含：HTML 结构、CSS 样式、JavaScript 逻辑全部内联。            ║
+║                                                                  ║
+║  页面组成：                                                       ║
+║    - 首页总览 (page-home)          - 模型管理 (page-models)       ║
+║    - 检测工作室 (page-studio)      - 训练控制台 (page-train)      ║
+║    - 测试控制台 (page-test)        - 集成生态 (page-integrations)  ║
+║    - 检测历史 (page-history)       - 介绍页 (page-about)           ║
+║                                                                  ║
+║  后端 API 地址：http://localhost:8050                             ║
+║  技术栈：Vanilla JS + Canvas + CSS3，零框架依赖                   ║
+╚══════════════════════════════════════════════════════════════════╝
+-->
 <html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -186,7 +203,8 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 </div>
 <div class="toasts" id="toasts"></div>
 
-<!-- ═══ SIDEBAR ═══ -->
+<!-- ═══════════════════════ 侧边栏导航 ═══════════════════════ -->
+<!-- 左侧固定导航栏，包含页面切换按钮和底部状态信息 -->
 <nav class="sidebar">
   <div class="sidebar-logo"><span class="dot"></span><em>YOLO26</em> Platform</div>
   <div class="sidebar-nav">
@@ -207,9 +225,12 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   </div>
 </nav>
 
-<!-- ═══ MAIN CONTENT ═══ -->
+<!-- ═══════════════════════ 主内容区 ═══════════════════════ -->
+<!-- 所有页面的容器，通过 JavaScript 切换 active 状态来控制显示隐藏 -->
 <div class="main">
-<!-- ── HOME ── -->
+
+<!-- ═══════════════════════ 首页总览 ═══════════════════════ -->
+<!-- 展示项目核心指标、导航卡片、六种任务概览和效果预览 -->
 <div class="page active" id="page-home"><div class="container">
   <div class="hero">
     <div class="badge"><span class="live"></span>YOLO26 · AGPL-3.0 开源</div>
@@ -242,7 +263,9 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   </div></div>
 </div></div>
 
-<!-- ── STUDIO ── -->
+<!-- ═══════════════════════ 检测工作室 ═══════════════════════ -->
+<!-- 三栏布局：可折叠参数面板（左）+ Canvas画布（中）+ 检测结果与终端输出（右） -->
+<!-- 支持：实时摄像头检测、图片拖拽上传、6种任务切换、检测历史记录 -->
 <div class="page" id="page-studio">
   <div class="studio-wrap">
     <div class="studio-canvas" id="stuCanvasWrap">
@@ -313,7 +336,9 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   </div>
 </div>
 
-<!-- ── MODELS ── -->
+<!-- ═══════════════════════ 模型管理 ═══════════════════════ -->
+<!-- 25个 YOLO26 预训练模型的对比表与下载页面 -->
+<!-- 5种规模 × 5种任务，支持按任务筛选和下载状态实时显示 -->
 <div class="page" id="page-models"><div class="container">
   <div class="section" style="padding-top:40px"><div class="section-label">模型管理</div><h2 class="section-title">📊 YOLO26 模型对比与下载</h2><p class="section-desc">五种规模 × 五种任务 = 25个预训练模型。点击下载，自动缓存。</p>
   <div class="mtabs" id="mTabs"></div>
@@ -323,7 +348,9 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   <div class="dl-grid" id="dlGrid"></div></div>
 </div></div>
 
-<!-- ── TRAINING ── -->
+<!-- ═══════════════════════ 训练控制台 ═══════════════════════ -->
+<!-- 5个参数面板（68个可调参数），完全对应 ultralytics default.yaml -->
+<!-- 后端真实调用 model.train()，日志实时轮询显示 -->
 <div class="page" id="page-train"><div class="container">
   <div class="section" style="padding-top:40px"><div class="section-label">训练控制台</div><h2 class="section-title">⚡ 模型训练</h2>
   <div class="train-g">
@@ -332,7 +359,9 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   </div></div>
 </div></div>
 
-<!-- ── TESTING ── -->
+<!-- ═══════════════════════ 测试控制台 ═══════════════════════ -->
+<!-- 三种模式：验证(val())、推理(predict())、导出(export()) -->
+<!-- 后端真实调用，返回验证指标或推理结果 -->
 <div class="page" id="page-test"><div class="container">
   <div class="section" style="padding-top:40px"><div class="section-label">测试控制台</div><h2 class="section-title">🧪 验证 · 推理 · 导出</h2>
   <div class="train-g">
@@ -347,7 +376,8 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center" id="expTags"></div></div>
 </div></div>
 
-<!-- ── HISTORY ── -->
+<!-- ═══════════════════════ 检测历史 ═══════════════════════ -->
+<!-- 展示磁盘存储的检测历史记录，支持查看标注图、单条删除和批量清空 -->
 <div class="page" id="page-history"><div class="container">
   <div class="section" style="padding-top:40px"><div class="section-label">检测历史</div><h2 class="section-title">📋 历史检测记录</h2><p class="section-desc" id="histSummary">所有检测结果自动保存，点击查看详情。</p>
   <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -359,7 +389,8 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
   </div></div>
 </div></div>
 
-<!-- ── ABOUT ── -->
+<!-- ═══════════════════════ YOLO26 介绍 ═══════════════════════ -->
+<!-- 项目背景、核心特性、模型体系说明和效果预览 -->
 <div class="page" id="page-about"><div class="container">
   <div class="section" style="padding-top:40px"><div class="section-label">关于</div><h2 class="section-title">📖 什么是 YOLO26？</h2>
   <div style="max-width:800px;font-size:.9rem;line-height:1.8;color:var(--t2)">
@@ -384,9 +415,17 @@ td{padding:12px 16px;border-bottom:1px solid var(--border)}tr:last-child td{bord
 </div><!-- /main -->
 
 <script>
-/* ═══════════════════════════════════════════
-   YOLO26 PLATFORM — 完整多页应用
-   ═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   YOLO26 PLATFORM — 完整多页应用 (JavaScript)
+   ═══════════════════════════════════════════════════════════════
+
+   全局变量命名约定：
+     stu*      = 检测工作室 (Studio)
+     m*        = 模型管理 (Models)
+     t*        = 训练 (Training)
+     x*        = 测试 (Testing)
+     backendOk = 后端连接状态
+   ═══════════════════════════════════════════════════════════════ */
 const API='http://localhost:8050';
 const TASKS=['detect','segment','pose','classify','obb','track'];
 const TASK_LABELS={detect:'目标检测',segment:'实例分割',pose:'姿态估计',classify:'图像分类',obb:'旋转框',track:'目标跟踪'};
@@ -429,14 +468,31 @@ document.addEventListener('DOMContentLoaded',()=>{try{
 // ── THEME ──
 function toggleTheme(){const d=document.documentElement;const themes=['light','warm','dark'];const labels=['☀️ 浅色','🍂 暖色','🌙 深色'];const cur=d.getAttribute('data-theme')||'light';const idx=themes.indexOf(cur);const next=themes[(idx+1)%3];d.setAttribute('data-theme',next);document.getElementById('themeLabel').textContent=labels[(idx+1)%3];localStorage.setItem('theme',next)}
 function toast(m,t='info'){const c=document.getElementById('toasts'),d=document.createElement('div');d.className='toast '+t;d.textContent=m;c.appendChild(d);setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300)},2400)}
+/* ── 后端连接检测 ────────────────────────────── */
+/* 每12秒轮询 /api/health 检测后端在线状态 */
+/* 连接成功：隐藏离线遮罩 + 更新状态指示器 */
+/* 连接失败：显示离线遮罩 + 标记离线 */
 async function checkBackend(){try{const r=await fetch(API+'/api/health',{signal:AbortSignal.timeout(5000)});backendOk=(await r.json()).status==='ok';document.getElementById('connOverlay').classList.add('hidden')}catch(e){backendOk=false;document.getElementById('connOverlay').classList.remove('hidden')}document.getElementById('navStatus').innerHTML=backendOk?'<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>':'<span style="color:var(--red)">● 离线</span>'}checkBackend();setInterval(checkBackend,12000);
+
+/* ── 等比缩放显示图片（contain 模式）────────── */
+/* 将任意尺寸的图片居中显示在 canvas 内，保持宽高比不拉伸 */
+/* 参数: c=canvas元素, img=Image对象 */
 function drawImgContain(c,img){const r=c.parentElement.getBoundingClientRect();c.width=Math.floor(r.width);c.height=Math.floor(r.height);const ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#000";ctx.fillRect(0,0,c.width,c.height);const sc=Math.min(c.width/img.width,c.height/img.height),dw=Math.round(img.width*sc),dh=Math.round(img.height*sc);ctx.drawImage(img,Math.round((c.width-dw)/2),Math.round((c.height-dh)/2),dw,dh)}
+/* ── 设备检测与自动配置 ────────────────────────── */
+/* 获取系统信息（设备类型+内存大小），自动设置推理设备 */
+/* Apple Silicon >8GB：默认 MPS + 推理尺寸 1280 */
 async function detectDevice(){try{const r=await fetch(API+'/api/system/info');if(r.ok){const d=await r.json();systemDevice=d.device||'cpu';const sel=document.getElementById('stuDeviceSel');if(sel){if(systemDevice==='mps'){sel.value='mps'}else if(systemDevice==='cuda'){sel.value='0'}else{sel.value='cpu'}};document.getElementById('navStatus').innerHTML='<span style="color:var(--green)">● YOLO '+systemDevice.toUpperCase()+'</span>';
   // Apple 芯片 + >8GB 内存 → 默认推理尺寸 1280
   const mem=d.memory_gb||0;const isz=document.getElementById('stuIszSel');if(isz&&systemDevice==='mps'&&mem>8){isz.value='1280';document.getElementById('stuIszL').textContent='1280'}}}catch(e){}}
+/* ── 通用 API 请求封装 ────────────────────────── */
+/* 统一处理前端与后端的 fetch 通信 */
+/* 自动添加 Content-Type header，统一错误返回格式 */
+/* 参数: method=GET/POST, path=API路径, body=请求体(可选) */
 async function api(method,path,body){try{const o={method,headers:{'Content-Type':'application/json'}};if(body)o.body=JSON.stringify(body);const r=await fetch(API+path,o);if(!r.ok){const e=await r.json().catch(()=>({}));return{error:e.error||r.statusText}}return await r.json()}catch(e){return{error:'连接失败'}}}
 
 // ── PAGE SWITCHING ──
+/* ── 页面导航初始化 ────────────────────────────── */
+/* 监听侧边栏点击事件，依据 data-page 属性切换到对应页面 */
 function initNav(){const sb=document.querySelector('.sidebar-nav');if(sb){sb.addEventListener('click',function(e){const btn=e.target.closest('.nav-item');if(btn&&btn.dataset.page)switchPage(btn.dataset.page)})}}
 function switchPage(page){
   if(!page)return;curPage=page;
