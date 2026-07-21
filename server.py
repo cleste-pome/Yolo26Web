@@ -331,7 +331,19 @@ def train_status(job_id):
 def sys_info():
     import torch
     d = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
-    return jsonify({"device": d, "torch_version": torch.__version__})
+    # 检测可用内存（macOS 统一内存 / Linux / Windows）
+    mem_gb = 0
+    try:
+        import psutil
+        mem_gb = round(psutil.virtual_memory().total / (1024**3))
+    except Exception:
+        try:
+            import subprocess
+            out = subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True).strip()
+            mem_gb = round(int(out) / (1024**3))
+        except Exception:
+            mem_gb = 4  # fallback
+    return jsonify({"device": d, "torch_version": torch.__version__, "memory_gb": mem_gb})
 
 @app.route("/api/health")
 def health():
