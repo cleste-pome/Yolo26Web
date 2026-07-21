@@ -120,7 +120,7 @@ def draw_tech_boxes(pil_img, result):
 
     # 按缩放后的尺寸计算线宽/字号
     s = max(nw, nh) / 640.0
-    line_w = max(2, int(3.5 * s))
+    line_w = max(2, int(2.3 * s))
     font_s = max(14, int(18 * s))
     box_r = max(6, int(10 * s))
     try:
@@ -152,7 +152,7 @@ def draw_tech_boxes(pil_img, result):
         draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
         # 标签：字号随框大小自适应
-        box_fs = max(9, min(font_s, int(min(bw, bh) / 6)))
+        box_fs = max(10, min(font_s, int(min(bw, bh) / 5.5)))
         try:
             box_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", box_fs)
         except Exception:
@@ -160,15 +160,16 @@ def draw_tech_boxes(pil_img, result):
         label = f" {name} {conf:.0%} "
         tb = draw.textbbox((0, 0), label, font=box_font)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
-        pad = max(2, int(4 * box_fs / 14))
+        pad = max(2, int(3 * box_fs / 14))
         lw_lb, lh_lb = tw + pad * 2, th + pad * 2
         lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
-        if bw < lw_lb + 2 or bh < lh_lb + 2:
+        # 如果完整标签放不下，只用置信度
+        if bw < lw_lb or bh < lh_lb:
             label = f" {conf:.0%} "
             tb = draw.textbbox((0, 0), label, font=box_font)
             tw, th = tb[2] - tb[0], tb[3] - tb[1]
             lw_lb, lh_lb = tw + pad * 2, th + pad * 2
-        if bw >= lw_lb + 2 and bh >= lh_lb + 2:
+        if bw >= lw_lb and bh >= lh_lb:
             draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
                                    radius=max(2, int(3 * box_fs / 14)), fill=(28, 28, 30))
             draw.text((lx + pad, ly + pad), label, fill=(255, 255, 255), font=box_font)
