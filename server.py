@@ -189,7 +189,17 @@ def predict():
             img = ImageOps.exif_transpose(img)  # 修正 EXIF 旋转
             results = model(img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
         else:
-            results = model(source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+            # 如果是文件名/路径，尝试用 PIL 打开，否则传给 YOLO 自动解析
+            import re
+            if source and not re.match(r'^https?://', source):
+                src_path = Path(source)
+                if src_path.exists():
+                    img = ImageOps.exif_transpose(Image.open(src_path))
+                    results = model(img, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+                else:
+                    results = model(source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
+            else:
+                results = model(source, conf=conf, iou=iou, imgsz=imgsz, max_det=max_det, device=device, verbose=False)
     except Exception as e:
         return jsonify({"error": f"推理失败: {e}"}), 500
 
@@ -222,8 +232,16 @@ def predict():
     # 在原图上绘制检测框（保持原始宽高比，不变形）
     if results and len(results) > 0:
         try:
-            # 重新加载原始图像
-            if source.startswith("data:image"):
+            # 优先用 YOLO 自带的 orig_img（BGR numpy array）
+            r0 = results[0]
+            if hasattr(r0, 'orig_img') and r0.orig_img is not None:
+                import numpy as np
+                arr = r0.orig_img
+                if isinstance(arr, np.ndarray):
+                    orig_img = Image.fromarray(arr[..., ::-1])  # BGR→RGB
+                else:
+                    orig_img = Image.fromarray(np.array(arr))
+            elif source.startswith("data:image"):
                 header, encoded = source.split(",", 1)
                 img_bytes = base64.b64decode(encoded)
                 orig_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
@@ -234,7 +252,7 @@ def predict():
             if max(ow, oh) > 1920:
                 sc = 1920 / max(ow, oh)
                 orig_img = orig_img.resize((int(ow * sc), int(oh * sc)), Image.LANCZOS)
-            annotated = draw_tech_boxes(orig_img, results[0])
+            annotated = draw_tech_boxes(orig_img, r0)
             out["annotated_b64"] = pil_to_b64(annotated, quality=92)
         except Exception as e:
             import traceback
