@@ -90,6 +90,8 @@
 | Flask | ≥ 3.0 |
 | 浏览器 | Chrome / Safari / Edge (需支持 WebRTC) |
 
+> ⚠️ **平台建议**：本项目在 **MacBook（macOS）** 上开发与测试，Safari / Chrome 下布局、字体、动画均为完整体验。Windows 系统下，不同浏览器的默认字体渲染、滚动条样式、表单控件尺寸存在差异，可能导致部分 UI 元素错位、面板折叠动画卡顿、以及 CSS Grid / Flexbox 表现不一致。建议优先在 Mac 上使用以获得最佳效果。
+
 ### 安装 & 启动
 
 ```bash
