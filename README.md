@@ -14,7 +14,7 @@
 
 这个项目既是我对计算机视觉的热爱，也是一个时代的见证——AI 不是来取代我们的，是来帮我们实现那些曾经「做不到」的事情的。希望你喜欢这个平台，也希望你也有一个被 AI 圆满的梦想。
 
-📂 **GitHub**: [https://github.com/cleste-pome/yolo26-purestate](https://github.com/cleste-pome/yolo26-purestate)
+📂 **GitHub**: [https://github.com/cleste-pome/Yolo26Web](https://github.com/cleste-pome/Yolo26Web)
 
 ---
 
@@ -94,8 +94,8 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/cleste-pome/yolo26-purestate.git
-cd yolo26-purestate
+git clone https://github.com/cleste-pome/Yolo26Web.git
+cd Yolo26Web
 
 # 2. 一键环境配置
 ./launch.sh --setup
@@ -352,8 +352,8 @@ curl -X POST http://localhost:8050/api/predict \
 ## 📂 项目结构
 
 ```
-yolo26-purestate/
-├── Yolo26.html         # 前端主页面（单文件，700+ 行）
+Yolo26Web/
+├── Yolo26.html         # 前端主页面（单文件，完整多页应用）
 ├── server.py           # Flask 后端服务器
 ├── state_manager.py    # 纯净态模型版本管理
 ├── launch.sh           # macOS/Linux 一键启动脚本
@@ -361,16 +361,19 @@ yolo26-purestate/
 ├── requirements.txt    # Python 依赖
 ├── README.md           # 本文件
 ├── .gitignore
-├── docs/
-│   └── pure-state.md   # 纯净态概念文档
-├── backups/            # 版本备份
-├── weights/            # 模型权重目录（25个 .pt 文件）
-├── history/            # 检测历史记录
-├── runs/               # 训练输出目录
-└── venv/               # Python 虚拟环境
+├── experiments.db      # 实验记录数据库（SQLite）
+├── states.db           # 纯净态状态数据库（SQLite）
+├── datasets/           # 示例数据集（coco8）
+├── uploads/            # 用户上传图片的临时目录
+├── weights/            # 模型权重目录（.pt 文件不上传 git）
+│   └── .gitkeep
+├── history/            # 检测历史记录（图片 + JSON）
+├── runs/               # 推理输出目录
+│   └── detect/predict/
+└── yolo26/             # YOLO 核心库（ultralytics）
 ```
 
-> **注意**：`weights/`、`venv/`、`runs/`、`history/` 目录不会上传到 GitHub（已在 `.gitignore` 中排除）。
+> **注意**：`weights/*.pt` 模型权重文件不会上传到 GitHub（已在 `.gitignore` 中排除），请通过项目内置的「模型管理」页面下载。
 
 ---
 
