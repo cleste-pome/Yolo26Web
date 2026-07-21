@@ -506,7 +506,7 @@ function stuStartLoop(){
       ctx.beginPath();ctx.roundRect(bx+.5,by+.5,bw-1,bh-1,10);ctx.stroke();
       // ── 标签贴在框内顶部，小框自动缩略 ──
       ctx.font=`500 ${fs}px -apple-system, "Helvetica Neue", sans-serif`;
-      const labels=[' '+(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'% ',' '+(COCO_ZH[d.class_id]||'')+' ',' '+(d.confidence*100).toFixed(0)+'% '];
+      const labels=[' '+(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'% ',' '+(d.confidence*100).toFixed(0)+'% ',' '+(COCO_ZH[d.class_id]||'')+' '];
       for(const lb of labels){
         const m=ctx.measureText(lb),tw=m.width+8,th=fs+6;
         if(bw>=tw+4&&bh>=th+4){

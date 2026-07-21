@@ -152,7 +152,7 @@ def draw_tech_boxes(pil_img, result):
         draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
         # 标签贴在框内顶部，小框自动缩短文字
-        labels = [f" {name} {conf:.0%} ", f" {name} ", f" {conf:.0%} "]
+        labels = [f" {name} {conf:.0%} ", f" {conf:.0%} ", f" {name} "]
         for label in labels:
             tb = draw.textbbox((0, 0), label, font=font)
             tw, th = tb[2] - tb[0], tb[3] - tb[1]
