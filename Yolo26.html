@@ -500,7 +500,7 @@ function stuStartLoop(){
     const pw=stuPredW||vw,ph=stuPredH||vh;
     const lw=parseInt(document.getElementById('stuLineW')?.value||'3');
     const fs=parseInt(document.getElementById('stuFontS')?.value||'13');
-    stuLiveDets.forEach(d=>{const[x1,y1,x2,y2]=d.bbox||[0,0,0,0];const bx=Math.round(dx+(x1/pw)*dw),by=Math.round(dy+(y1/ph)*dh),bw=Math.round(((x2-x1)/pw)*dw),bh=Math.round(((y2-y1)/ph)*dh);if(bw<3||bh<3)return;const co=COLORS[(d.class_id||0)%COLORS.length];
+    stuLiveDets.forEach((d,i)=>{const[x1,y1,x2,y2]=d.bbox||[0,0,0,0];const bx=Math.round(dx+(x1/pw)*dw),by=Math.round(dy+(y1/ph)*dh),bw=Math.round(((x2-x1)/pw)*dw),bh=Math.round(((y2-y1)/ph)*dh);if(bw<3||bh<3)return;const co=COLORS[i%COLORS.length];
       if(stuTask==='segment'&&d.segmentation_polygon){
         ctx.beginPath();
         d.segmentation_polygon.forEach(([px,py],i)=>{
@@ -615,7 +615,7 @@ async function stuRedetect(){
 }
 
 function stuUpdatePanel(r,m){
-  document.getElementById("stuDetList").innerHTML=(r.detections||[]).slice(0,15).map(d=>`<div class="dr"><span class="dot" style="background:${COLORS[(d.class_id||0)%COLORS.length]}"></span><span class="name">${COCO_ZH[d.class_id]||d.class_name}</span><span class="conf">${(d.confidence*100).toFixed(1)}%</span></div>`).join("")||"<div style=\"color:var(--t3);text-align:center\">未检测到目标</div>";
+  document.getElementById("stuDetList").innerHTML=(r.detections||[]).slice(0,15).map((d,i)=>`<div class="dr"><span class="dot" style="background:${COLORS[i%COLORS.length]}"></span><span class="name">${COCO_ZH[d.class_id]||d.class_name}</span><span class="conf">${(d.confidence*100).toFixed(1)}%</span></div>`).join("")||"<div style=\"color:var(--t3);text-align:center\">未检测到目标</div>";
   document.getElementById("stuMetN").textContent=(r.detections||[]).length;document.getElementById("stuMetT").textContent=(r.speed_ms?.inference||"?")+"ms";document.getElementById("stuMetM").textContent=m.replace(".pt","").toUpperCase();
   if(r.terminal){document.getElementById("stuBottomBody").innerHTML=r.terminal}
   else{const sp=r.speed_ms||{};document.getElementById("stuBottomBody").innerHTML=`<span class="g">▶ yolo predict model=${m} task=${stuTask}</span>\n  Preprocess: ${sp.preprocess||"?"}ms  |  Inference: ${sp.inference||"?"}ms  |  Postprocess: ${sp.postprocess||"?"}ms\n  Objects: ${(r.detections||[]).length}`}

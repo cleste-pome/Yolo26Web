@@ -230,7 +230,7 @@ def draw_tech_boxes(pil_img, result):
         cls_id = int(boxes.cls[i]) if boxes.cls is not None else 0
         conf = float(boxes.conf[i]) if boxes.conf is not None else 0
         name = (result.names or {}).get(cls_id, f"cls_{cls_id}")
-        color = APPLE[cls_id % len(APPLE)]
+        color = APPLE[i % len(APPLE)]           # 按检测索引分配颜色，同类不同对象不同色
 
         x1, y1, x2, y2 = [int(v) for v in box]
 
