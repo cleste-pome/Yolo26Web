@@ -188,12 +188,12 @@ def download_model():
 def cached_models():
     return jsonify(list(MODEL_CACHE.keys()))
 
-# ── Apple 液态玻璃标注 ──────────────────────────
+# ── Apple 风格标注 ──────────────────────────────
 def draw_tech_boxes(pil_img, result):
-    """Apple 液态玻璃风格：细线圆角框、标签嵌在框内、渐变层次感"""
+    """圆角细线框 + 标签贴在框内顶部"""
     from PIL import Image, ImageDraw, ImageFont
 
-    img = pil_img.copy().convert("RGBA")
+    img = pil_img.copy().convert("RGB")
     w, h = img.size
 
     APPLE = [
@@ -211,11 +211,8 @@ def draw_tech_boxes(pil_img, result):
 
     boxes = result.boxes
     if boxes is None:
-        return img.convert("RGB")
+        return img
 
-    # 玻璃标签单独图层
-    glass = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glass)
     draw = ImageDraw.Draw(img)
 
     for i in range(len(boxes)):
@@ -225,49 +222,24 @@ def draw_tech_boxes(pil_img, result):
         name = (result.names or {}).get(cls_id, f"cls_{cls_id}")
         color = APPLE[i % len(APPLE)]
         x1, y1, x2, y2 = [int(v) for v in box]
-        bw, bh = x2 - x1, y2 - y1
-        r = 10  # 框圆角
+        r = 10
 
-        # ── 框体：外发光 + 细线 ──
-        # 发光层
-        draw.rounded_rectangle([x1-1, y1-1, x2+1, y2+1], radius=r,
-                               outline=color + (35,), width=4)
-        # 主框线
-        draw.rounded_rectangle([x1, y1, x2, y2], radius=r,
-                               outline=color, width=2)
-        # 微弱填充
-        draw.rounded_rectangle([x1+3, y1+3, x2-3, y2-3], radius=max(0, r-3),
-                               fill=color + (6,))
+        # 圆角细线边框
+        draw.rounded_rectangle([x1, y1, x2, y2], radius=r, outline=color, width=2)
 
-        # ── 液态玻璃标签（嵌在框内左上角）──
-        label = f"{name}  {conf:.0%}"
+        # 标签贴在框内顶部，挨着上边框
+        label = f" {name} {conf:.0%} "
         tb = draw.textbbox((0, 0), label, font=font)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
-        px, py = 10, 5
-        lx, ly = x1 + 4, y1 + 4
-        lw_label, lh_label = tw + px * 2, th + py * 2
+        lw, lh = tw + 8, th + 6
+        lx, ly = x1 + 2, y1 + 1  # 紧贴上边框内侧
 
-        if bw > lw_label + 16 and bh > lh_label + 16:
-            # 底层暗色
-            gd.rounded_rectangle(
-                [lx, ly, lx + lw_label, ly + lh_label], radius=6,
-                fill=(10, 12, 18, 200))
-            # 中间层（稍亮，模拟玻璃折射）
-            gd.rounded_rectangle(
-                [lx + 1, ly + 1, lx + lw_label - 1, ly + lh_label - 1], radius=5,
-                fill=(30, 32, 40, 160))
-            # 顶部高光线
-            gd.rectangle(
-                [lx + 4, ly + 1, lx + lw_label - 4, ly + 2],
-                fill=(255, 255, 255, 18))
-            # 左侧色条
-            gd.rectangle([lx + 5, ly + 4, lx + 7, ly + lh_label - 4],
-                         fill=color + (230,))
-            # 文字
-            gd.text((lx + px + 4, ly + py), label, fill=(255, 255, 255, 250), font=font)
+        if bw > lw + 8 and bh > lh + 4:
+            draw.rounded_rectangle([lx, ly, lx + lw, ly + lh], radius=5,
+                                   fill=(28, 28, 30))
+            draw.text((lx + 4, ly + 3), label, fill=(255, 255, 255), font=font)
 
-    img = Image.alpha_composite(img, glass)
-    return img.convert("RGB")
+    return img
 
 
 # ── 推理 ────────────────────────────────────────────
