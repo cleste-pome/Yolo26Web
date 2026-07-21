@@ -10,12 +10,6 @@
 # 运行时数据库
 *.db
 
-# 检测历史（含用户图片）
-history/
-
-# 推理输出
-runs/
-
 # Python
 __pycache__/
 *.pyc
