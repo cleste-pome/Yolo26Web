@@ -188,32 +188,24 @@ def download_model():
 def cached_models():
     return jsonify(list(MODEL_CACHE.keys()))
 
-# ── Apple 风格标注 ──────────────────────────────
+# ── Apple 液态玻璃标注 ──────────────────────────
 def draw_tech_boxes(pil_img, result):
-    """在原图上绘制 Apple 风格检测框 — 圆角、半透明标签、系统配色"""
+    """Apple 液态玻璃风格：细线圆角框、标签嵌在框内、渐变层次感"""
     from PIL import ImageDraw, ImageFont
 
     img = pil_img.copy().convert("RGBA")
     w, h = img.size
 
-    # Apple 系统色板
     APPLE = [
-        (0, 122, 255),    # Blue
-        (52, 199, 89),    # Green
-        (255, 149, 0),    # Orange
-        (255, 59, 48),    # Red
-        (175, 82, 222),   # Purple
-        (90, 200, 250),   # Teal
-        (255, 204, 0),    # Yellow
-        (255, 45, 85),    # Pink
+        (0, 122, 255), (52, 199, 89), (255, 149, 0), (255, 59, 48),
+        (175, 82, 222), (90, 200, 250), (255, 204, 0), (255, 45, 85),
     ]
 
-    # SF Pro / Helvetica 字体
     try:
-        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 15)
+        font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 14)
     except Exception:
         try:
-            font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 15)
+            font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 14)
         except Exception:
             font = ImageFont.load_default()
 
@@ -221,44 +213,59 @@ def draw_tech_boxes(pil_img, result):
     if boxes is None:
         return img.convert("RGB")
 
-    # 半透明元素用独立图层，最后合成
+    # 玻璃标签单独图层
     glass = Image.new("RGBA", img.size, (0, 0, 0, 0))
     gd = ImageDraw.Draw(glass)
+    draw = ImageDraw.Draw(img)
 
     for i in range(len(boxes)):
         box = boxes.xyxy[i].cpu().numpy()
         cls_id = int(boxes.cls[i]) if boxes.cls is not None else 0
         conf = float(boxes.conf[i]) if boxes.conf is not None else 0
         name = (result.names or {}).get(cls_id, f"cls_{cls_id}")
-        color = APPLE[i % len(APPLE)]           # 按检测索引分配颜色，同类不同对象不同色
-
+        color = APPLE[i % len(APPLE)]
         x1, y1, x2, y2 = [int(v) for v in box]
+        bw, bh = x2 - x1, y2 - y1
+        r = 10  # 框圆角
 
-        # ── 圆角矩形框 ──
-        r, lw = 10, 3
-        draw = ImageDraw.Draw(img)
-        draw.rounded_rectangle([x1, y1, x2, y2], radius=r, outline=color, width=lw)
+        # ── 框体：外发光 + 细线 ──
+        # 发光层
+        draw.rounded_rectangle([x1-1, y1-1, x2+1, y2+1], radius=r,
+                               outline=color + (35,), width=4)
+        # 主框线
+        draw.rounded_rectangle([x1, y1, x2, y2], radius=r,
+                               outline=color, width=2)
+        # 微弱填充
+        draw.rounded_rectangle([x1+3, y1+3, x2-3, y2-3], radius=max(0, r-3),
+                               fill=color + (6,))
 
-        # ── 毛玻璃标签（半透明圆角 pill + 小色块 + 文字）──
+        # ── 液态玻璃标签（嵌在框内左上角）──
         label = f"{name}  {conf:.0%}"
         tb = draw.textbbox((0, 0), label, font=font)
         tw, th = tb[2] - tb[0], tb[3] - tb[1]
-        px, py = 12, 6  # padding
-        lx1, ly1 = x1, max(0, y1 - th - py * 2 - 2)
-        lx2, ly2 = min(w, x1 + tw + px * 2), y1
-        lr = 8  # label corner radius
+        px, py = 10, 5
+        lx, ly = x1 + 4, y1 + 4
+        lw_label, lh_label = tw + px * 2, th + py * 2
 
-        # 毛玻璃背景
-        gd.rounded_rectangle([lx1, ly1, lx2, ly2], radius=lr, fill=(28, 28, 30, 185))
-        # 左侧色块
-        gd.rounded_rectangle(
-            [lx1 + 4, ly1 + 4, lx1 + 6, ly2 - 4],
-            radius=1, fill=color + (220,)
-        )
-        # 文字
-        gd.text((lx1 + px, ly1 + py), label, fill=(255, 255, 255, 245), font=font)
+        if bw > lw_label + 16 and bh > lh_label + 16:
+            # 底层暗色
+            gd.rounded_rectangle(
+                [lx, ly, lx + lw_label, ly + lh_label], radius=6,
+                fill=(10, 12, 18, 200))
+            # 中间层（稍亮，模拟玻璃折射）
+            gd.rounded_rectangle(
+                [lx + 1, ly + 1, lx + lw_label - 1, ly + lh_label - 1], radius=5,
+                fill=(30, 32, 40, 160))
+            # 顶部高光线
+            gd.rectangle(
+                [lx + 4, ly + 1, lx + lw_label - 4, ly + 2],
+                fill=(255, 255, 255, 18))
+            # 左侧色条
+            gd.rectangle([lx + 5, ly + 4, lx + 7, ly + lh_label - 4],
+                         fill=color + (230,))
+            # 文字
+            gd.text((lx + px + 4, ly + py), label, fill=(255, 255, 255, 250), font=font)
 
-    # 合成毛玻璃层
     img = Image.alpha_composite(img, glass)
     return img.convert("RGB")
 

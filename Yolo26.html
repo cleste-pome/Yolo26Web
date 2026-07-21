@@ -500,28 +500,37 @@ function stuStartLoop(){
     const pw=stuPredW||vw,ph=stuPredH||vh;
     const lw=parseInt(document.getElementById('stuLineW')?.value||'3');
     const fs=parseInt(document.getElementById('stuFontS')?.value||'13');
-    stuLiveDets.forEach((d,i)=>{const[x1,y1,x2,y2]=d.bbox||[0,0,0,0];const bx=Math.round(dx+(x1/pw)*dw),by=Math.round(dy+(y1/ph)*dh),bw=Math.round(((x2-x1)/pw)*dw),bh=Math.round(((y2-y1)/ph)*dh);if(bw<3||bh<3)return;const co=COLORS[i%COLORS.length];
+    stuLiveDets.forEach((d,i)=>{const[x1,y1,x2,y2]=d.bbox||[0,0,0,0];const bx=Math.round(dx+(x1/pw)*dw),by=Math.round(dy+(y1/ph)*dh),bw=Math.round(((x2-x1)/pw)*dw),bh=Math.round(((y2-y1)/ph)*dh);if(bw<4||bh<4)return;const co=COLORS[i%COLORS.length];
+      // ── 液态玻璃标签（放在框内左上角）──
+      const lb=(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'%';
+      ctx.font=`500 ${fs}px -apple-system, "Helvetica Neue", sans-serif`;
+      const m=ctx.measureText(lb),tw=m.width+18,th=fs+10;
+      const lx=bx+4,ly=by+4; // 框内，偏移 4px
+      const doLabel=(bw>tw+12&&bh>th+12);
+      // 液态玻璃背景
+      if(doLabel){
+        const g=ctx.createLinearGradient(lx,ly,lx,ly+th);
+        g.addColorStop(0,'rgba(44,44,46,.88)');g.addColorStop(.45,'rgba(28,28,30,.84)');g.addColorStop(1,'rgba(18,18,20,.90)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(lx,ly,tw,th,6);ctx.fill();
+        // 玻璃顶边高光线
+        ctx.fillStyle='rgba(255,255,255,.07)';ctx.fillRect(lx+4,ly+1,tw-8,1);
+        // 左侧彩色条
+        ctx.fillStyle=co;ctx.fillRect(lx+5,ly+4,2,th-7);
+        ctx.fillStyle='#fff';ctx.fillText(lb,lx+13,ly+fs+3);
+      }
+      // ── 框体 ──
+      // 外光晕
+      ctx.save();ctx.shadowColor=co+'55';ctx.shadowBlur=6;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+      ctx.strokeStyle=co;ctx.lineWidth=2;
+      ctx.beginPath();ctx.roundRect(bx+.5,by+.5,bw-1,bh-1,10);ctx.stroke();ctx.restore();
+      // 微弱填充
+      ctx.fillStyle=co+'08';ctx.beginPath();ctx.roundRect(bx,by,bw,bh,10);ctx.fill();
+      // ── 分割 / 姿态特殊处理 ──
       if(stuTask==='segment'&&d.segmentation_polygon){
-        ctx.beginPath();
-        d.segmentation_polygon.forEach(([px,py],i)=>{
-          const sx=Math.round(dx+(px/pw)*dw),sy=Math.round(dy+(py/ph)*dh);
-          i===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy);
-        });
-        ctx.closePath();ctx.fillStyle=co+'35';ctx.fill();ctx.strokeStyle=co;ctx.lineWidth=lw;ctx.stroke();
-        const lb=(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'%';ctx.font=`${fs}px -apple-system, "Helvetica Neue", sans-serif`;ctx.fillStyle=co;ctx.fillText(lb,bx+3,by-6);
+        ctx.beginPath();d.segmentation_polygon.forEach(([px,py],j)=>{const sx=Math.round(dx+(px/pw)*dw),sy=Math.round(dy+(py/ph)*dh);j===0?ctx.moveTo(sx,sy):ctx.lineTo(sx,sy)});ctx.closePath();
+        ctx.fillStyle=co+'18';ctx.fill();ctx.strokeStyle=co;ctx.lineWidth=1.5;ctx.stroke();
       }else if(stuTask==='pose'&&d.keypoints){
         d.keypoints.forEach(([kx,ky])=>{const px=Math.round(dx+(kx/pw)*dw),py=Math.round(dy+(ky/ph)*dh);ctx.fillStyle=co;ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fill()});
-        ctx.strokeStyle=co;ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(bx,by,bw,bh,8);ctx.stroke();
-      }else{
-        // Apple 风格圆角框
-        ctx.strokeStyle=co;ctx.lineWidth=lw;ctx.beginPath();ctx.roundRect(bx,by,bw,bh,8);ctx.stroke();
-        // 毛玻璃标签
-        const lb=(COCO_ZH[d.class_id]||'')+' '+(d.confidence*100).toFixed(0)+'%';ctx.font=`${fs}px -apple-system, "Helvetica Neue", sans-serif`;
-        const m=ctx.measureText(lb);const tw=m.width+20,th=fs+10;
-        const lx=bx,ly=Math.max(0,by-th-2);ctx.fillStyle='rgba(28,28,30,.85)';
-        ctx.beginPath();ctx.roundRect(lx,ly,tw,th,6);ctx.fill();
-        ctx.fillStyle=co;ctx.fillRect(lx+5,ly+4,3,th-6);
-        ctx.fillStyle='#fff';ctx.fillText(lb,lx+13,ly+fs+2);
       }
     });
     document.getElementById("stuMetF").textContent=fpsC.v;
