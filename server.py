@@ -151,28 +151,42 @@ def draw_tech_boxes(pil_img, result):
         # 圆角边框
         draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
-        # 标签：字号随框大小自适应
+        # 标签：字号随框自适应，窄框竖排（类别在上、概率在下）
         box_fs = max(10, min(font_s, int(min(bw, bh) / 5.5)))
         try:
             box_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", box_fs)
         except Exception:
             box_font = font
-        label = f" {name} {conf:.0%} "
-        tb = draw.textbbox((0, 0), label, font=box_font)
-        tw, th = tb[2] - tb[0], tb[3] - tb[1]
         pad = max(2, int(3 * box_fs / 14))
-        lw_lb, lh_lb = tw + pad * 2, th + pad * 2
         lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
-        # 如果完整标签放不下，只用置信度
-        if bw < lw_lb or bh < lh_lb:
-            label = f" {conf:.0%} "
-            tb = draw.textbbox((0, 0), label, font=box_font)
-            tw, th = tb[2] - tb[0], tb[3] - tb[1]
-            lw_lb, lh_lb = tw + pad * 2, th + pad * 2
-        if bw >= lw_lb and bh >= lh_lb:
-            draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
+
+        # 先试横排
+        label_h = f" {name} {conf:.0%} "
+        tb_h = draw.textbbox((0, 0), label_h, font=box_font)
+        tw_h, th_h = tb_h[2] - tb_h[0], tb_h[3] - tb_h[1]
+        lw_h, lh_h = tw_h + pad * 2, th_h + pad * 2
+
+        # 再试竖排（类别 + 概率两行）
+        label_v_name = f" {name} "
+        label_v_conf = f" {conf:.0%} "
+        tb_n = draw.textbbox((0, 0), label_v_name, font=box_font)
+        tb_c = draw.textbbox((0, 0), label_v_conf, font=box_font)
+        tw_v = max(tb_n[2]-tb_n[0], tb_c[2]-tb_c[0])
+        th_v = (tb_n[3]-tb_n[0]) + (tb_c[3]-tb_c[0]) + pad
+
+        if bw >= lw_h and bh >= lh_h:
+            # 横排
+            draw.rounded_rectangle([lx, ly, lx + lw_h, ly + lh_h],
                                    radius=max(2, int(3 * box_fs / 14)), fill=(28, 28, 30))
-            draw.text((lx + pad, ly + pad), label, fill=(255, 255, 255), font=box_font)
+            draw.text((lx + pad, ly + pad), label_h, fill=(255, 255, 255), font=box_font)
+        elif bw >= tw_v + pad * 2 and bh >= th_v + pad * 2:
+            # 竖排
+            lw_v, lh_v = tw_v + pad * 2, th_v + pad * 2
+            draw.rounded_rectangle([lx, ly, lx + lw_v, ly + lh_v],
+                                   radius=max(2, int(3 * box_fs / 14)), fill=(28, 28, 30))
+            draw.text((lx + pad, ly + pad), label_v_name, fill=(255, 255, 255), font=box_font)
+            draw.text((lx + pad, ly + pad + (tb_n[3]-tb_n[0])), label_v_conf,
+                      fill=(200, 200, 210), font=box_font)
 
     return img
 

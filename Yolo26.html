@@ -504,21 +504,37 @@ function stuStartLoop(){
       // ── 圆角细线边框 ──
       ctx.strokeStyle=co;ctx.lineWidth=lw;
       ctx.beginPath();ctx.roundRect(bx+.5,by+.5,bw-1,bh-1,10);ctx.stroke();
-      // ── 标签字号随框大小自适应，尊重显示选项 ──
+      // ── 标签自适应：横排放不下就竖排（类别上、概率下）──
       let showLabel=document.getElementById('stuShowLabels')?.checked??true;
       let showConf=document.getElementById('stuShowConf')?.checked??true;
-      let lbParts=[];
-      if(showLabel)lbParts.push(COCO_ZH[d.class_id]||'');
-      if(showConf)lbParts.push((d.confidence*100).toFixed(0)+'%');
-      let lb=lbParts.length?' '+lbParts.join(' ')+' ':'';
-      if(lb){
+      if(showLabel||showConf){
         let boxFs=Math.max(9,Math.min(fs,Math.floor(Math.min(bw,bh)/5.5)));
         ctx.font=`500 ${boxFs}px -apple-system, "Helvetica Neue", sans-serif`;
-        let m=ctx.measureText(lb),tw=m.width+4,th=boxFs+4;
-        if(bw>=tw&&bh>=th){
+        let nameTxt=showLabel?' '+(COCO_ZH[d.class_id]||'')+' ':'';
+        let confTxt=showConf?' '+(d.confidence*100).toFixed(0)+'% ':'';
+        let hzTxt=nameTxt+confTxt;
+        let hm=ctx.measureText(hzTxt),hw=hm.width+4,hh=boxFs+4;
+        let vm_n=ctx.measureText(nameTxt),vm_c=ctx.measureText(confTxt);
+        let vw=Math.max(vm_n.width,vm_c.width)+6,vh=boxFs*2+6;
+        if(bw>=hw&&bh>=hh){
+          // 横排
           ctx.fillStyle='rgba(28,28,30,.88)';
-          ctx.beginPath();ctx.roundRect(bx+2,by+1,tw,th,4);ctx.fill();
-          ctx.fillStyle='#fff';ctx.fillText(lb,bx+4,by+boxFs+2);
+          ctx.beginPath();ctx.roundRect(bx+2,by+1,hw,hh,4);ctx.fill();
+          ctx.fillStyle='#fff';ctx.fillText(hzTxt,bx+4,by+boxFs+2);
+        }else if(showLabel&&showConf&&bw>=vw&&bh>=vh){
+          // 竖排：类别在上，概率在下
+          ctx.fillStyle='rgba(28,28,30,.88)';
+          ctx.beginPath();ctx.roundRect(bx+2,by+1,vw,vh,4);ctx.fill();
+          ctx.fillStyle='#fff';ctx.fillText(nameTxt,bx+4,by+boxFs+2);
+          ctx.fillStyle='rgba(200,200,210,.9)';ctx.fillText(confTxt,bx+4,by+boxFs*2+2);
+        }else if(showConf){
+          // 只剩置信度
+          let cm=ctx.measureText(confTxt),cw=cm.width+4,ch=boxFs+4;
+          if(bw>=cw&&bh>=ch){
+            ctx.fillStyle='rgba(28,28,30,.88)';
+            ctx.beginPath();ctx.roundRect(bx+2,by+1,cw,ch,4);ctx.fill();
+            ctx.fillStyle='#fff';ctx.fillText(confTxt,bx+4,by+boxFs+2);
+          }
         }
       }
       // ── 分割 / 姿态 ──
