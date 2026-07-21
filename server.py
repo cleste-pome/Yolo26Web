@@ -187,6 +187,13 @@ def draw_tech_boxes(pil_img, result):
             draw.text((lx + pad, ly + pad), label_v_name, fill=(255, 255, 255), font=box_font)
             draw.text((lx + pad, ly + pad + (tb_n[3]-tb_n[0])), label_v_conf,
                       fill=(200, 200, 210), font=box_font)
+        else:
+            # 极窄：只显示类别
+            lw_v, lh_v = tw_v + pad * 2, tb_n[3] - tb_n[0] + pad * 2
+            if bw >= lw_v and bh >= lh_v:
+                draw.rounded_rectangle([lx, ly, lx + lw_v, ly + lh_v],
+                                       radius=max(2, int(3 * box_fs / 14)), fill=(28, 28, 30))
+                draw.text((lx + pad, ly + pad), label_v_name, fill=(255, 255, 255), font=box_font)
 
     return img
 

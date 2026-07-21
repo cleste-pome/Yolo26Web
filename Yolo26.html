@@ -527,13 +527,13 @@ function stuStartLoop(){
           ctx.beginPath();ctx.roundRect(bx+2,by+1,vw,vh,4);ctx.fill();
           ctx.fillStyle='#fff';ctx.fillText(nameTxt,bx+4,by+boxFs+2);
           ctx.fillStyle='rgba(200,200,210,.9)';ctx.fillText(confTxt,bx+4,by+boxFs*2+2);
-        }else if(showConf){
-          // 只剩置信度
-          let cm=ctx.measureText(confTxt),cw=cm.width+4,ch=boxFs+4;
-          if(bw>=cw&&bh>=ch){
+        }else if(showLabel){
+          // 极窄：只显示类别
+          let nm=ctx.measureText(nameTxt),nw=nm.width+4,nh=boxFs+4;
+          if(bw>=nw&&bh>=nh){
             ctx.fillStyle='rgba(28,28,30,.88)';
-            ctx.beginPath();ctx.roundRect(bx+2,by+1,cw,ch,4);ctx.fill();
-            ctx.fillStyle='#fff';ctx.fillText(confTxt,bx+4,by+boxFs+2);
+            ctx.beginPath();ctx.roundRect(bx+2,by+1,nw,nh,4);ctx.fill();
+            ctx.fillStyle='#fff';ctx.fillText(nameTxt,bx+4,by+boxFs+2);
           }
         }
       }
