@@ -94,19 +94,33 @@
 
 ### 安装 & 启动
 
+**🥇 推荐方式 — 双击启动（macOS）**
+
+Finder 中双击 `Yolo26.command`，自动完成环境配置、启动后端、打开浏览器。
+
+> 首次双击如提示「无法打开」，**右键 → 打开** 即可（macOS Gatekeeper 安全机制）。换一台新电脑 clone 后同样操作，只需一次。
+
+**🥈 终端方式**
+
 ```bash
 # 1. 克隆项目
 git clone https://github.com/cleste-pome/Yolo26Web.git
 cd Yolo26Web
 
-# 2. 一键环境配置
-./launch.sh --setup
+# 2. 一键环境配置（仅首次）
+bash launch.sh --setup
 
 # 3. 启动（自动打开浏览器）
-./launch.sh
+bash launch.sh
 ```
 
+> 提示：如果 `./launch.sh` 报权限错误，改用 `bash launch.sh` 即可，无需 chmod。
+
 启动后访问 **http://localhost:8050**，左侧导航切换各功能页面。
+
+**🥉 直接打开了 HTML？**
+
+如果直接双击 `Yolo26.html`，页面会弹出全屏遮罩提示后端未连接——这是正常的，因为后端服务还没启动。按上述方式启动即可，页面会自动连接。
 
 > **Windows 用户**: 运行 `launch.bat --setup` 然后 `launch.bat`
 
