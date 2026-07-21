@@ -151,19 +151,27 @@ def draw_tech_boxes(pil_img, result):
         # 圆角边框
         draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
-        # 标签贴在框内顶部，小框自动缩短文字
-        labels = [f" {name} {conf:.0%} ", f" {conf:.0%} ", f" {name} "]
-        for label in labels:
-            tb = draw.textbbox((0, 0), label, font=font)
+        # 标签：字号随框大小自适应
+        box_fs = max(9, min(font_s, int(min(bw, bh) / 6)))
+        try:
+            box_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", box_fs)
+        except Exception:
+            box_font = font
+        label = f" {name} {conf:.0%} "
+        tb = draw.textbbox((0, 0), label, font=box_font)
+        tw, th = tb[2] - tb[0], tb[3] - tb[1]
+        pad = max(2, int(4 * box_fs / 14))
+        lw_lb, lh_lb = tw + pad * 2, th + pad * 2
+        lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
+        if bw < lw_lb + 2 or bh < lh_lb + 2:
+            label = f" {conf:.0%} "
+            tb = draw.textbbox((0, 0), label, font=box_font)
             tw, th = tb[2] - tb[0], tb[3] - tb[1]
-            pad = max(3, int(6 * s))
-            lw_lb, lh_lb = tw + pad * 2, th + pad
-            lx, ly = x1 + max(1, int(2 * s)), y1 + max(1, int(2 * s))
-            if bw >= lw_lb + 4 and bh >= lh_lb + 4:
-                draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
-                                       radius=max(2, int(4 * s)), fill=(28, 28, 30))
-                draw.text((lx + pad, ly + max(1, int(2 * s))), label, fill=(255, 255, 255), font=font)
-                break
+            lw_lb, lh_lb = tw + pad * 2, th + pad * 2
+        if bw >= lw_lb + 2 and bh >= lh_lb + 2:
+            draw.rounded_rectangle([lx, ly, lx + lw_lb, ly + lh_lb],
+                                   radius=max(2, int(3 * box_fs / 14)), fill=(28, 28, 30))
+            draw.text((lx + pad, ly + pad), label, fill=(255, 255, 255), font=box_font)
 
     return img
 
