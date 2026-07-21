@@ -299,22 +299,38 @@ def predict():
     return jsonify(out)
 
 # ── 训练 ────────────────────────────────────────────
+TRAIN_LOG_DIR = Path("runs/train_logs")
+TRAIN_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 @app.route("/api/train", methods=["POST"])
 def start_training():
-    """启动训练任务"""
+    """启动真实训练任务，输出捕获到日志文件"""
     data = request.get_json() or {}
     job_id = uuid.uuid4().hex[:12]
+    log_path = TRAIN_LOG_DIR / f"{job_id}.log"
 
     with job_lock:
-        TRAIN_JOBS[job_id] = {"status": "running", "model": data.get("model", "yolo26n.pt")}
+        TRAIN_JOBS[job_id] = {"status": "running", "model": data.get("model", "yolo26n.pt"), "log": str(log_path)}
 
     def _train():
         try:
+            import io, sys
             model = get_model(data["model"])
-            model.train(**{k: v for k, v in data.items() if k != "model"})
+            params = {k: v for k, v in data.items() if k != "model"}
+            # 捕获训练输出到日志
+            old_stdout = sys.stdout
+            sys.stdout = tee = io.StringIO()
+            try:
+                model.train(**params)
+                output = tee.getvalue()
+            finally:
+                sys.stdout = old_stdout
+            log_path.write_text(output, encoding="utf-8")
             with job_lock:
                 TRAIN_JOBS[job_id]["status"] = "finished"
         except Exception as e:
+            import traceback
+            log_path.write_text(traceback.format_exc(), encoding="utf-8")
             with job_lock:
                 TRAIN_JOBS[job_id]["status"] = f"error: {e}"
 
@@ -323,8 +339,47 @@ def start_training():
 
 @app.route("/api/train/status/<job_id>")
 def train_status(job_id):
+    """返回训练状态和实时日志"""
     with job_lock:
-        return jsonify(TRAIN_JOBS.get(job_id, {"status": "not found"}))
+        job = TRAIN_JOBS.get(job_id, {"status": "not found"})
+    log_path = job.get("log", "")
+    log_text = ""
+    if log_path and Path(log_path).exists():
+        try:
+            log_text = Path(log_path).read_text(encoding="utf-8")[-8000:]
+        except Exception:
+            pass
+    return jsonify({"status": job.get("status", "not found"), "log": log_text, "job_id": job_id})
+
+
+# ── 验证 ────────────────────────────────────────────
+@app.route("/api/val", methods=["POST"])
+def run_validation():
+    """运行真实模型验证"""
+    data = request.get_json() or {}
+    model_name = data.get("model", "yolo26n.pt")
+    dataset = data.get("data", "coco8.yaml")
+    imgsz = int(data.get("imgsz", 640))
+    device = data.get("device", "cpu")
+    split = data.get("split", "val")
+    try:
+        model = get_model(model_name)
+        import io, sys
+        old_stdout = sys.stdout
+        sys.stdout = tee = io.StringIO()
+        try:
+            metrics = model.val(data=dataset, imgsz=imgsz, device=device, split=split, verbose=True)
+        finally:
+            sys.stdout = old_stdout
+        output = tee.getvalue()
+        result = {"status": "ok", "output": output[-3000:], "metrics": {}}
+        if hasattr(metrics, 'results_dict'):
+            result["metrics"] = {k: round(float(v), 4) if isinstance(v, (int, float)) else v
+                                for k, v in metrics.results_dict.items()}
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"status": "error", "error": str(e), "trace": traceback.format_exc()[-2000:]})
 
 # ── 系统信息 ─────────────────────────────────────────
 @app.route("/api/system/info")

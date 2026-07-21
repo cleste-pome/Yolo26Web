@@ -446,11 +446,11 @@ function switchPage(page){
 function renderStuTaskBtns(){document.getElementById("stuTaskBtns").innerHTML=TASKS.map(t=>`<button class="btn btn-sm ${t===stuTask?"btn-p":"btn-g"}" onclick="stuSwitchTask('${t}')" style="font-size:.73rem;padding:5px 10px">${TASK_EMOJI[t]} ${TASK_LABELS[t]}</button>`).join("")}
 function stuSwitchTask(task){
   if(stuWebcamOn){stuStopWebcam();toast("任务已切换，请重新开启摄像头","info")}
-  stuTask=task;renderStuTaskBtns();stuPopulateModels();
-  if(stuImgMode){
-    if(stuTaskCache[task]){stuRestoreCache(task);}
-    else{stuRedetect();}
-  }
+  stuTask=task;stuTaskCache={};renderStuTaskBtns();stuPopulateModels();
+  // 恢复原图，等用户手动点击「运行检测」
+  if(stuImgEl){drawImgContain(document.getElementById("studioCanvas"),stuImgEl)}
+  document.getElementById("stuDetList").innerHTML='<div style="color:var(--t3);text-align:center;padding:8px">已切换任务，点击「运行检测」</div>';
+  stuResetMet();
 }
 function stuPopulateModels(){
   const sel=document.getElementById("stuModelSel"),models=TASK_MODELS[stuTask]||TASK_MODELS.detect;
@@ -746,7 +746,41 @@ const T_PANELS=[{title:"📐 基础设置",fields:[{id:"tm",l:"模型权重",t:"
 function renderTrain(){let h=`<h3>⚙️ 训练配置</h3>`;T_PANELS.forEach(p=>{h+=`<div class="studio-panel-section"><div class="studio-panel-h" onclick="this.parentElement.classList.toggle('collapsed')">${p.title} <span style="font-size:.6rem;margin-left:auto">▼</span></div><div class="studio-panel-b">`;p.fields.forEach(f=>{if(f.t==="sel")h+=`<div class="cfg-r"><label>${f.l}</label><select id="${f.id}" onchange="updateTCode()">${f.o.map(o=>`<option value="${o}" ${o===f.d?"selected":""}>${o}</option>`).join("")}</select></div>`;else if(f.t==="rng")h+=`<div class="cfg-r"><label>${f.l} <span style="font-family:var(--mono);color:var(--brand)" id="${f.id}V">${f.d}</span></label><input type="range" id="${f.id}" min="${f.min}" max="${f.max}" value="${f.d}" step="${f.step||1}" oninput="document.getElementById('${f.id}V').textContent=this.value;updateTCode()"></div>`;else if(f.t==="chk")h+=`<label class="check-row"><input type="checkbox" id="${f.id}" ${f.d?"checked":""} onchange="updateTCode()"> ${f.l}</label>`;else if(f.t==="path")h+=`<div class="cfg-r"><label>${f.l}</label><div style="display:flex;gap:4px"><input id="${f.id}" value="${f.d||''}" style="flex:1;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--mono);font-size:.73rem" onchange="updateTCode()"><button class="btn btn-g btn-sm" style="width:auto;padding:4px 10px;font-size:.7rem" onclick="document.getElementById('${f.id}_file').click()">📁</button></div><input type="file" id="${f.id}_file" style="display:none" onchange="if(this.files[0]){document.getElementById('${f.id}').value=this.files[0].webkitRelativePath||this.files[0].name};updateTCode()"></div>`;else h+=`<div class="cfg-r"><label>${f.l}</label><input id="${f.id}" value="${f.d||''}" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--mono);font-size:.73rem" onchange="updateTCode()"></div>`});h+=`</div></div>`});h+=`<button class="btn btn-p" id="tBtnExec" onclick="tExec()">▶ 启动训练</button><div class="prog-w" id="tProg"><div class="prog-b"><div class="prog-f" id="tProgF"></div></div><div class="prog-i"><span id="tProgE">就绪</span><span id="tProgP">0%</span></div></div>`;document.getElementById("tCfgPanel").innerHTML=h}
 function tGet(id,d){const e=document.getElementById(id);return e?(e.type==="checkbox"?e.checked:e.value):d}
 function updateTCode(){let s=T_SNIPPETS.train;s=s.replace("MODEL",tGet("tm","yolo26l.pt")).replace("DATA",tGet("td","coco8.yaml")).replace("EPOCHS",tGet("te","100")).replace("IMSZ",tGet("ti","640")).replace("BATCH",tGet("tb","16")).replace("DEVICE",tGet("tv","cpu")).replace("OPTIMIZER",tGet("tOptimizer","auto")).replace("LR0",tGet("tLR0","0.01")).replace("RESUME",tGet("tResume",false)?"True":"False").replace("AMP",tGet("tAmp",true)?"True":"False").replace("PATIENCE",tGet("tPatience","100")).replace("PROJECT",tGet("tp","runs/detect")).replace("NAME",tGet("tn","train"));document.getElementById("tCodeBlock").innerHTML=s}
-function tExec(){if(tTraining){tTraining=false;clearInterval(tTimer);document.getElementById("tBtnExec").textContent="▶ 启动训练";document.getElementById("tBtnExec").style.background="";document.getElementById("tProg").style.display="none";return}tTraining=true;const b=document.getElementById("tBtnExec");b.textContent="⏹ 停止";b.style.background="#dc2626";document.getElementById("tProg").style.display="block";const ep=parseInt(tGet("te","100")),model=tGet("tm","yolo26l.pt"),data=tGet("td","coco8.yaml"),imgsz=parseInt(tGet("ti","640")),device=tGet("tv","cpu"),batch=parseInt(tGet("tb","16")),lr0=parseFloat(tGet("tLR0","0.01")),lrf=parseFloat(tGet("tLRF","0.01")),optimizer=tGet("tOptimizer","auto"),resume=tGet("tResume",false),project=tGet("tp","runs/detect"),ename=tGet("tn","train");const log=document.getElementById("tCodeBlock");log.innerHTML+=`\n<span class="cm"># Ultralytics YOLO26 训练</span>\n<span class="cm"># model=${model} data=${data} epochs=${ep} imgsz=${imgsz} device=${device}</span>\n\n`;if(backendOk){api("POST","/api/train",{model,data,epochs:ep,imgsz,device,batch,name:project+"/"+ename,lr0,optimizer,resume}).then(r=>{if(r&&r.job_id){document.getElementById("tProgE").textContent="后端训练中...";toast("✅ 训练已提交","ok")}}).catch(()=>{})}let st=0,total=Math.max(2,Math.round(ep/5));tTimer=setInterval(()=>{st++;const p=Math.min(100,Math.round((st/total)*100));document.getElementById("tProgF").style.width=p+"%";const ce=Math.min(ep,Math.max(1,Math.round((st/total)*ep)));document.getElementById("tProgE").textContent=`Epoch ${ce}/${ep}`;document.getElementById("tProgP").textContent=p+"%";if(st<=total){const box=(2.8-(ce/ep)*2.3+Math.random()*0.15).toFixed(4),cls=(3.2-(ce/ep)*2.8+Math.random()*0.15).toFixed(4),dfl=(1.15-(ce/ep)*0.85+Math.random()*0.08).toFixed(4),prec=(0.25+(ce/ep)*0.45+Math.random()*0.06).toFixed(4),rec=(0.18+(ce/ep)*0.38+Math.random()*0.06).toFixed(4),mAP50=(8+(ce/ep)*42+Math.random()*2).toFixed(3),mAP=(5+(ce/ep)*36+Math.random()*2).toFixed(3),lr=(lr0*Math.pow(lrf||0.01,ce/ep)).toExponential(2),mem=(1.8+Math.random()*1.2).toFixed(1);log.innerHTML+=`<span style="color:#c9d1d9">${String(ce).padStart(4)}/${ep}  ${box}  ${cls}  ${dfl}  ${prec}  ${rec}  ${mAP50}  ${mAP}  ${imgsz}  ${lr}  ${mem}G</span>\n`;log.scrollTop=log.scrollHeight}if(p>=100){clearInterval(tTimer);tTraining=false;b.textContent="✅ 训练完成";b.style.background="";log.innerHTML+=`\n<span class="g">✅ 训练完成! best.pt → ${project}/${ename}/weights/best.pt</span>\n<span class="g">📊 mAP50-95: ${(6+36+Math.random()*2).toFixed(1)}%</span>\n`}},120)}
+async function tExec(){
+  if(tTraining){tTraining=false;clearInterval(tTimer);document.getElementById("tBtnExec").textContent="▶ 启动训练";document.getElementById("tBtnExec").style.background="";document.getElementById("tProg").style.display="none";return}
+  if(!backendOk){toast("后端未连接","err");return}
+  const ep=parseInt(tGet("te","1")),model=tGet("tm","yolo26l.pt"),data=tGet("td","coco8.yaml"),
+    imgsz=parseInt(tGet("ti","640")),device=tGet("tv","cpu"),batch=parseInt(tGet("tb","16")),
+    lr0=parseFloat(tGet("tLR0","0.01")),optimizer=tGet("tOptimizer","auto"),
+    project=tGet("tp","runs/detect"),ename=tGet("tn","train");
+  const log=document.getElementById("tCodeBlock"),logEl=log;log.innerHTML='';
+  log.innerHTML+=`<span class="cm"># 启动训练: ${model} → ${data}</span>\n`;
+  log.innerHTML+=`<span class="cm"># epochs=${ep} imgsz=${imgsz} device=${device} batch=${batch}</span>\n\n`;
+  const r=await api("POST","/api/train",{model,data,epochs:ep,imgsz,device,batch,name:project+"/"+ename,lr0,optimizer});
+  if(!r||!r.job_id){log.innerHTML+=`\n<span class="r">❌ 训练启动失败</span>\n`;return}
+  tTraining=true;const b=document.getElementById("tBtnExec");b.textContent="⏹ 停止";b.style.background="#dc2626";
+  document.getElementById("tProg").style.display="block";document.getElementById("tProgE").textContent="后端训练中...";
+  let lastLen=0;
+  tTimer=setInterval(async()=>{
+    const s=await api("GET","/api/train/status/"+r.job_id);
+    if(!s)return;
+    const newText=(s.log||'').slice(lastLen);lastLen=(s.log||'').length;
+    if(newText)log.innerHTML+=`<span style="color:#c9d1d9;white-space:pre-wrap">${newText.replace(/</g,'&lt;')}</span>\n`;
+    log.scrollTop=log.scrollHeight;
+    // 从日志提取 epoch 进度
+    const epMatch=s.log?.match(/^\s*(\d+)\/(\d+)/m);
+    if(epMatch){
+      const cur=parseInt(epMatch[1]),total=parseInt(epMatch[2]);
+      const pct=Math.round((cur/total)*100);
+      document.getElementById("tProgF").style.width=pct+"%";
+      document.getElementById("tProgE").textContent=`Epoch ${cur}/${total}`;
+      document.getElementById("tProgP").textContent=pct+"%";
+    }
+    if(s.status==='finished'){clearInterval(tTimer);tTraining=false;
+      b.textContent="✅ 训练完成";b.style.background="";}
+    else if(s.status?.startsWith('error')){clearInterval(tTimer);tTraining=false;
+      b.textContent="❌ 训练失败";b.style.background="";log.innerHTML+=`\n<span class="r">${s.status}</span>\n`;}
+  },1000);}
 
 // ═══════════════════════ 测试控制台 ═══════════════════════
 const X_SNIPPETS={val:`<span class="kw">from</span> ultralytics <span class="kw">import</span> <span class="fn">YOLO</span>\n\nmodel = <span class="fn">YOLO</span>(<span class="str">"MODEL"</span>)\nmetrics = model.<span class="fn">val</span>(\n    data=<span class="str">"DATA"</span>,\n    split=<span class="str">"SPLIT"</span>,\n    imgsz=<span class="num">IMSZ</span>,\n    device=<span class="str">"DEVICE"</span>,\n    conf=<span class="num">CONF</span>,\n    iou=<span class="num">IOU</span>,\n    max_det=<span class="num">MAXDET</span>,\n)`,predict:`<span class="kw">from</span> ultralytics <span class="kw">import</span> <span class="fn">YOLO</span>\n\nmodel = <span class="fn">YOLO</span>(<span class="str">"MODEL"</span>)\nresults = model(\n    <span class="str">"SOURCE"</span>,\n    conf=<span class="num">CONF</span>,\n    iou=<span class="num">IOU</span>,\n    imgsz=<span class="num">IMSZ</span>,\n    device=<span class="str">"DEVICE"</span>,\n    max_det=<span class="num">MAXDET</span>,\n    augment=<span class="kw">AUGMENT</span>,\n    agnostic_nms=<span class="kw">AGNOSTIC</span>,\n)`,export:`<span class="kw">from</span> ultralytics <span class="kw">import</span> <span class="fn">YOLO</span>\n\nmodel = <span class="fn">YOLO</span>(<span class="str">"MODEL"</span>)\nmodel.<span class="fn">export</span>(\n    format=<span class="str">"FORMAT"</span>,\n    imgsz=<span class="num">IMSZ</span>,\n    device=<span class="str">"DEVICE"</span>,\n    dynamic=<span class="kw">DYNAMIC</span>,\n    simplify=<span class="kw">SIMPLIFY</span>,\n    half=<span class="kw">HALF</span>,\n    opset=<span class="num">OPSET</span>,\n)`};
@@ -755,7 +789,34 @@ let xMode="val";
 function renderTest(){const cfg=X_PANELS[xMode]||X_PANELS.val;let h=`<h3>⚙️ ${{val:"验证",predict:"推理",export:"导出"}[xMode]}配置</h3>`;cfg.forEach(p=>{h+=`<div class="studio-panel-section"><div class="studio-panel-h" onclick="this.parentElement.classList.toggle('collapsed')">${p.title} <span style="font-size:.6rem;margin-left:auto">▼</span></div><div class="studio-panel-b">`;p.fields.forEach(f=>{if(f.t==="sel")h+=`<div class="cfg-r"><label>${f.l}</label><select id="${f.id}" onchange="updateXCode()">${f.o.map(o=>`<option value="${o}" ${o===f.d?"selected":""}>${o}</option>`).join("")}</select></div>`;else if(f.t==="rng")h+=`<div class="cfg-r"><label>${f.l} <span style="font-family:var(--mono);color:var(--brand)" id="${f.id}V">${f.d}</span></label><input type="range" id="${f.id}" min="${f.min}" max="${f.max}" value="${f.d}" step="${f.step||1}" oninput="document.getElementById('${f.id}V').textContent=this.value;updateXCode()"></div>`;else if(f.t==="chk")h+=`<label class="check-row"><input type="checkbox" id="${f.id}" ${f.d?"checked":""} onchange="updateXCode()"> ${f.l}</label>`;else if(f.t==="path")h+=`<div class="cfg-r"><label>${f.l}</label><div style="display:flex;gap:4px"><input id="${f.id}" value="${f.d||''}" style="flex:1;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--mono);font-size:.73rem" onchange="updateXCode()"><button class="btn btn-g btn-sm" style="width:auto;padding:4px 10px;font-size:.7rem" onclick="document.getElementById('${f.id}_file').click()">📁</button></div><input type="file" id="${f.id}_file" style="display:none" onchange="if(this.files[0]){document.getElementById('${f.id}').value=this.files[0].webkitRelativePath||this.files[0].name};updateXCode()"></div>`;else h+=`<div class="cfg-r"><label>${f.l}</label><input id="${f.id}" value="${f.d||''}" style="padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:var(--mono);font-size:.73rem" onchange="updateXCode()"></div>`});h+=`</div></div>`});const labels={val:"▶ 运行验证",predict:"▶ 运行推理",export:"▶ 导出模型"};h+=`<button class="btn btn-p" onclick="xExec()">${labels[xMode]||"▶ 执行"}</button>`;document.getElementById("xCfgPanel").innerHTML=h}
 function xGet(id,d){const e=document.getElementById(id);return e?(e.type==="checkbox"?e.checked:e.value):d}
 function updateXCode(){let s=X_SNIPPETS[xMode];s=s.replace("MODEL",xGet("vm2",xGet("pm2",xGet("em2","yolo26n.pt")))).replace("DATA",xGet("vd2","coco8.yaml")).replace("IMSZ",xGet("vi2",xGet("pi2",xGet("ei2","640")))).replace("DEVICE",xGet("vv2",xGet("pv2",xGet("ev2","cpu")))).replace("SOURCE",xGet("ps2","image.jpg")).replace("CONF",xGet("pConf2",xGet("vConf2","0.25"))).replace("IOU",xGet("pIou2",xGet("vIou2","0.7"))).replace("MAXDET",xGet("pMaxDet2",xGet("vMaxDet2","300"))).replace("FORMAT",xGet("ef2","onnx")).replace("SPLIT",xGet("vSplit2","val")).replace("AUGMENT",xGet("pAugment2",false)?"True":"False").replace("AGNOSTIC",xGet("pAgnostic2",false)?"True":"False").replace("DYNAMIC",xGet("eDynamic2",false)?"True":"False").replace("SIMPLIFY",xGet("eSimplify2",true)?"True":"False").replace("HALF",xGet("eHalf2",false)?"True":"False").replace("OPSET",xGet("eOpset2","12"));document.getElementById("xCodeBlock").innerHTML=s}
-function xExec(){const log=document.getElementById("xCodeBlock");if(xMode==="val"){const m=xGet("vm2","best.pt");log.innerHTML+=`\\n<span class="cm"># Validating: ${m}</span>\\n`;log.innerHTML+=`[模拟] mAP50-95:0.486 mAP50:0.685 P:0.732 R:0.654\\n`;toast("✅ 验证完成","ok")}else if(xMode==="predict"){const m=xGet("pm2","yolo26n.pt"),src=xGet("ps2","image.jpg");log.innerHTML+=`\\n<span class="cm"># Predict: ${m} → ${src}</span>\\n`;log.innerHTML+=`[模拟] 4objects(person,car,dog,chair)\\n`;toast("✅ 推理完成","ok")}else if(xMode==="export"){const m=xGet("em2","yolo26n.pt"),fmt=xGet("ef2","onnx");log.innerHTML+=`\\n<span class="cm"># Export: ${m} → ${fmt}</span>\\n`;log.innerHTML+=`<span class="g">✅ ${m.replace(".pt","")}.${fmt==="tensorrt"?"engine":fmt}</span>\\n`;toast("✅ 导出完成","ok")}updateXCode()}
+async function xExec(){
+  if(!backendOk){toast("后端未连接","err");return}
+  const log=document.getElementById("xCodeBlock");
+  if(xMode==="val"){
+    const m=xGet("vm2",xGet("pm2","yolo26n.pt")),d=xGet("vd2","coco8.yaml"),sz=parseInt(xGet("vi2","640")),
+      dv=xGet("vv2","cpu"),sp=xGet("vSplit2","val");
+    log.innerHTML+=`<span class="cm"># 运行验证: ${m} → ${d} (${sp})</span>\n<span class="y">⏳ 验证中...</span>\n`;
+    const r=await api("POST","/api/val",{model:m,data:d,imgsz:sz,device:dv,split:sp});
+    if(r&&r.status==="ok"){
+      log.innerHTML+=`<span style="color:#c9d1d9;white-space:pre-wrap">${(r.output||'').replace(/</g,'&lt;')}</span>\n`;
+      if(Object.keys(r.metrics||{}).length)log.innerHTML+=`\n<span class="g">📊 ${JSON.stringify(r.metrics)}</span>\n`;
+      toast("✅ 验证完成","ok");
+    }else{log.innerHTML+=`<span class="r">❌ ${r?.error||'验证失败'}</span>\n`;toast("验证失败","err");}
+  }else if(xMode==="predict"){
+    const m=xGet("pm2","yolo26n.pt"),src=xGet("ps2","image.jpg"),sz=parseInt(xGet("pi2","640")),
+      dv=xGet("pv2","cpu"),cf=parseFloat(xGet("pConf2","0.25")),iou=parseFloat(xGet("pIou2","0.7"));
+    log.innerHTML+=`<span class="cm"># 推理: ${m} → ${src}</span>\n<span class="y">⏳ 推理中...</span>\n`;
+    const r=await api("POST","/api/predict",{model:m,source:src,imgsz:sz,device:dv,conf:cf,iou,max_det:300});
+    if(r&&!r.error){
+      log.innerHTML+=`<span style="color:#c9d1d9;white-space:pre-wrap">${(r.terminal||'').replace(/</g,'&lt;')}</span>\n`;
+      if(r.detections)r.detections.slice(0,8).forEach(d=>{log.innerHTML+=`<span style="color:#c9d1d9">  ${d.class_name} ${(d.confidence*100).toFixed(1)}%</span>\n`});
+      toast(`✅ ${r.detections?.length||0}个目标`,"ok");
+    }else{log.innerHTML+=`<span class="r">❌ ${r?.error||'推理失败'}</span>\n`;toast("推理失败","err");}
+  }else if(xMode==="export"){
+    log.innerHTML+=`<span class="cm"># 模型导出需在终端执行 ultralytics export</span>\n<span class="cm"># 网页端暂不支持，请用命令行</span>\n`;
+    toast("导出请用命令行","info");
+  }
+}
 
 
 // ═══════════════════════ 检测历史页面 ═══════════════════════
