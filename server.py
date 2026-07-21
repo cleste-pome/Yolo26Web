@@ -97,19 +97,29 @@ def results_to_json(results, model_key="", task="detect"):
 
 # ── Apple 风格标注 ──────────────────────────────
 def draw_tech_boxes(pil_img, result):
-    """圆角细线框 + 标签贴在框内顶部，按图片尺寸等比缩放"""
+    """圆角细线框 + 标签贴在框内顶部。先缩图再标注，坐标同步缩放。"""
     from PIL import Image, ImageDraw, ImageFont
 
     img = pil_img.copy().convert("RGB")
-    w, h = img.size
+    ow, oh = img.size
+
+    # 缩放到最大 1920px，计算缩放比
+    MAX_SIZE = 1920
+    scale = min(1.0, MAX_SIZE / max(ow, oh))
+    if scale < 1.0:
+        nw, nh = int(ow * scale), int(oh * scale)
+        img = img.resize((nw, nh), Image.LANCZOS)
+    else:
+        nw, nh = ow, oh
+        scale = 1.0
 
     APPLE = [
         (0, 122, 255), (52, 199, 89), (255, 149, 0), (255, 59, 48),
         (175, 82, 222), (90, 200, 250), (255, 204, 0), (255, 45, 85),
     ]
 
-    # 按图片尺寸等比缩放，确保大图和小图的标注观感一致
-    s = max(w, h) / 640.0
+    # 按缩放后的尺寸计算线宽/字号
+    s = max(nw, nh) / 640.0
     line_w = max(3, int(5 * s))
     font_s = max(14, int(18 * s))
     box_r = max(6, int(10 * s))
@@ -133,7 +143,9 @@ def draw_tech_boxes(pil_img, result):
         conf = float(boxes.conf[i]) if boxes.conf is not None else 0
         name = (result.names or {}).get(cls_id, f"cls_{cls_id}")
         color = APPLE[i % len(APPLE)]
-        x1, y1, x2, y2 = [int(v) for v in box]
+        # 坐标同步缩放
+        x1, y1 = int(box[0] * scale), int(box[1] * scale)
+        x2, y2 = int(box[2] * scale), int(box[3] * scale)
         bw, bh = x2 - x1, y2 - y1
 
         # 圆角边框
@@ -247,11 +259,6 @@ def predict():
                 orig_img = ImageOps.exif_transpose(Image.open(io.BytesIO(img_bytes))).convert("RGB")
             else:
                 orig_img = ImageOps.exif_transpose(Image.open(source)).convert("RGB")
-            # 缩放到最大 1920px（保证文字清晰、传输快）
-            ow, oh = orig_img.size
-            if max(ow, oh) > 1920:
-                sc = 1920 / max(ow, oh)
-                orig_img = orig_img.resize((int(ow * sc), int(oh * sc)), Image.LANCZOS)
             annotated = draw_tech_boxes(orig_img, r0)
             out["annotated_b64"] = pil_to_b64(annotated, quality=92)
         except Exception as e:
