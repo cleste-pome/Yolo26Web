@@ -222,6 +222,7 @@ def draw_tech_boxes(pil_img, result):
         name = (result.names or {}).get(cls_id, f"cls_{cls_id}")
         color = APPLE[i % len(APPLE)]
         x1, y1, x2, y2 = [int(v) for v in box]
+        bw, bh = x2 - x1, y2 - y1
         r = 10
 
         # 圆角细线边框
