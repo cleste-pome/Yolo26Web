@@ -121,7 +121,7 @@ def draw_tech_boxes(pil_img, result):
     # 按缩放后的尺寸计算线宽/字号
     s = max(nw, nh) / 640.0
     line_w = max(2, int(2.3 * s))
-    font_s = max(14, int(18 * s))
+    font_s = max(12, int(13 * s))
     box_r = max(6, int(10 * s))
     try:
         font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_s)
@@ -152,7 +152,7 @@ def draw_tech_boxes(pil_img, result):
         draw.rounded_rectangle([x1, y1, x2, y2], radius=box_r, outline=color, width=line_w)
 
         # 标签：字号随框自适应，窄框竖排（类别在上、概率在下）
-        box_fs = max(10, min(font_s, int(min(bw, bh) / 5.5)))
+        box_fs = max(10, min(font_s, int(min(bw, bh) / 6.5)))
         try:
             box_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", box_fs)
         except Exception:
